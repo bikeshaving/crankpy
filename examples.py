@@ -7,20 +7,19 @@ that mirror Crank's JavaScript async function* components.
 
 import asyncio
 from crank import (
-    Context, create_element as h, component, async_component, 
-    generator_component, async_generator_component, lazy, suspense
+    Context, h, component, Fragment, Portal
 )
 
 
-# Simple synchronous component
+# Simple synchronous component  
 @component
 def greeting(ctx: Context, props):
     name = props.get('name', 'World')
-    return f"Hello, {name}!"
+    return h.span[f"Hello, {name}!"]
 
 
 # Async component that fetches data
-@async_component
+@component
 async def user_profile(ctx: Context, props):
     user_id = props.get('user_id')
     
@@ -28,14 +27,14 @@ async def user_profile(ctx: Context, props):
     await asyncio.sleep(0.1)
     user_data = {'name': f'User {user_id}', 'email': f'user{user_id}@example.com'}
     
-    return h('div', {'class': 'profile'}, 
-        h('h2', None, user_data['name']),
-        h('p', None, user_data['email'])
-    )
+    return h.div(className='profile')[
+        h.h2[user_data['name']],
+        h.p[user_data['email']]
+    ]
 
 
 # Generator component for stateful behavior
-@generator_component
+@component
 def counter(ctx: Context, props):
     count = 0
     
@@ -43,14 +42,14 @@ def counter(ctx: Context, props):
         increment = updated_props.get('increment', 1)
         count += increment
         
-        yield h('div', {'class': 'counter'},
-            h('span', None, f'Count: {count}'),
-            h('button', {'onclick': 'increment'}, 'Increment')
-        )
+        yield h.div(className='counter')[
+            h.span[f'Count: {count}'],
+            h.button(onClick='increment')['Increment']
+        ]
 
 
 # Async generator component (most powerful)
-@async_generator_component
+@component
 async def live_data(ctx: Context, props):
     """Component that updates with live data"""
     
@@ -69,7 +68,7 @@ async def live_data(ctx: Context, props):
 
 
 # Timer component using async generator
-@async_generator_component  
+@component  
 async def timer(ctx: Context, props):
     """Timer that updates every second"""
     start_time = asyncio.get_event_loop().time()
@@ -109,7 +108,7 @@ lazy_heavy = lazy(load_heavy_component)
 
 
 # App component demonstrating composition
-@async_generator_component
+@component
 async def app(ctx: Context, props):
     """Main application component"""
     
@@ -157,7 +156,7 @@ async def app(ctx: Context, props):
 def with_loading(component_func):
     """HOC that adds loading state"""
     
-    @async_generator_component
+    @component
     async def wrapper(ctx: Context, props):
         loading = True
         
@@ -199,7 +198,7 @@ class UseState:
 
 
 # Component using "hooks"
-@generator_component
+@component
 def stateful_component(ctx: Context, props):
     state = UseState(0)
     

@@ -10,6 +10,10 @@ import asyncio
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
+# PyScript imports for DOM and JS interop
+from js import Symbol, document, window, fetch, console
+import js
+
 
 # Type aliases matching Crank's TypeScript types
 Children = Union[str, int, float, bool, None, 'Element', List['Children']]
@@ -34,6 +38,42 @@ class Element:
             self.children = []
 
 
+class PropsProxy:
+    """Proxy object for clean props access with dash-to-underscore conversion"""
+    
+    def __init__(self, props: Props):
+        self._props = props or {}
+        
+    def __getattr__(self, name: str):
+        """Convert underscores back to dashes when accessing props"""
+        # Try underscore name first (for Python-style access)
+        if name in self._props:
+            return self._props[name]
+        
+        # Try dash version (for HTML attributes that were converted)
+        dash_name = name.replace('_', '-')
+        if dash_name in self._props:
+            return self._props[dash_name]
+            
+        # Return None if not found (like dict.get())
+        return None
+    
+    def get(self, key: str, default=None):
+        """Dict-style access with dash conversion"""
+        if key in self._props:
+            return self._props[key]
+        
+        dash_key = key.replace('_', '-')
+        return self._props.get(dash_key, default)
+    
+    def __contains__(self, key: str):
+        """Support 'in' operator"""
+        return key in self._props or key.replace('_', '-') in self._props
+    
+    def __repr__(self):
+        return f"PropsProxy({self._props})"
+
+
 class Context:
     """
     Crank Context equivalent - manages component lifecycle and state.
@@ -42,12 +82,14 @@ class Context:
     - Async scheduling and lifecycle management
     - Context provision/consumption
     - Event handling
+    - Props access via ctx.props
     """
     
     def __init__(self):
         self._provisions: Dict[Any, Any] = {}
         self._scheduled_tasks: List[Awaitable] = []
         self._iteration_count = 0
+        self.props: PropsProxy = PropsProxy({})  # Current props proxy
         
     def provide(self, key: Any, value: Any) -> None:
         """Provide a value to child components"""
@@ -106,88 +148,188 @@ def create_element(tag: Union[str, Component], props: Optional[Props] = None, *c
     return Element(tag=tag, props=props, children=list(children))
 
 
-# Component decorators for different component types
+# Single component decorator that auto-detects function type
 def component(func: Callable) -> Component:
-    """Decorator for synchronous components"""
-    return func
+    """
+    Universal component decorator that auto-detects function type.
+    
+    Supports:
+    - Regular functions: def component(ctx) -> Children
+    - Async functions: async def component(ctx) -> Children  
+    - Generators: def component(ctx) -> Generator[Children, None, Optional[Children]]
+    - Async generators: async def component(ctx) -> AsyncGenerator[Children, Optional[Children]]
+    
+    Usage:
+        @component
+        def my_component(ctx):
+            return h.div['Hello World']
+            
+        @component  
+        async def async_component(ctx):
+            data = await fetch_data()
+            return h.div[data]
+            
+        @component
+        def stateful_component(ctx):
+            for _ in ctx:
+                yield h.div[f'Count: {ctx.props.count}']
+                
+        @component
+        async def live_component(ctx):
+            async for _ in ctx:
+                data = await fetch_live_data(ctx.props.source)
+                yield h.div[data]
+    """
+    import inspect
+    
+    # Check function signature - should only accept ctx
+    sig = inspect.signature(func)
+    if len(sig.parameters) != 1:
+        raise ValueError(f"Component '{func.__name__}' should only accept ctx parameter, got {len(sig.parameters)} parameters")
+    
+    # Check if function is async
+    is_async = inspect.iscoroutinefunction(func)
+    
+    # Check if function is generator by inspecting its code
+    # This is a heuristic - functions with 'yield' are generators
+    is_generator = 'yield' in inspect.getsource(func)
+    
+    if is_async and is_generator:
+        # async function* equivalent
+        return func  # Already an async generator
+    elif is_generator:
+        # function* equivalent  
+        return func  # Already a generator
+    elif is_async:
+        # async function equivalent
+        return func  # Already an async function
+    else:
+        # Regular function
+        return func
 
 
+# Legacy decorators for backward compatibility
 def async_component(func: Callable) -> Component:
-    """Decorator for async components"""
-    return func
+    """Legacy decorator - use @component instead"""
+    return component(func)
 
 
 def generator_component(func: Callable) -> Component:
-    """Decorator for generator components"""
-    return func
+    """Legacy decorator - use @component instead"""
+    return component(func)
 
 
 def async_generator_component(func: Callable) -> Component:
-    """Decorator for async generator components"""
-    return func
+    """Legacy decorator - use @component instead"""
+    return component(func)
 
 
-# Built-in components
-class Fragment:
-    """Fragment component for grouping children"""
-    @staticmethod
-    def __call__(ctx: Context, props: Props) -> Children:
-        return props.get('children', [])
+# Special element types (exact JS Symbol.for interop for PyScript)
+Fragment = ""  # Empty string for grouping children
+
+# Use JavaScript Symbol.for for exact interop in PyScript
+Portal = Symbol.for_("crank.Portal")  # For rendering into different root nodes
+Copy = Symbol.for_("crank.Copy")      # Preserves previously rendered content  
+Text = Symbol.for_("crank.Text")      # For explicit text nodes
+Raw = Symbol.for_("crank.Raw")        # For injecting raw HTML/nodes
 
 
-# Async utilities (equivalent to Crank's async module)
-def lazy(initializer: Callable[[], Awaitable[Component]]) -> Component:
-    """
-    Create a lazy-loaded component.
+
+
+# Magic h element with JSX-like syntax
+import inspect
+
+class ElementBuilder:
+    """Builder for individual elements with props and children syntax"""
     
-    Args:
-        initializer: Function that returns a Promise resolving to a component
+    def __init__(self, tag: Union[str, Component]):
+        self.tag = tag
+        self.props = {}
+    
+    def __call__(self, **props):
+        """Handle props: h.div(className='app')"""
+        # Convert underscores to hyphens, leave camelCase alone
+        converted_props = {}
+        for key, value in props.items():
+            converted_props[key.replace('_', '-')] = value
         
-    Returns:
-        Component that loads the target component on first render
-    """
-    async def lazy_component(ctx: Context, props: Props) -> AsyncGenerator[Children, None]:
-        component_class = await initializer()
-        
-        # Handle module with default export
-        if isinstance(component_class, dict) and 'default' in component_class:
-            component_class = component_class['default']
-            
-        if not callable(component_class):
-            raise ValueError("Lazy component initializer must return a Component")
-            
-        async for updated_props in ctx:
-            yield create_element(component_class, updated_props)
-            
-    return lazy_component
-
-
-async def suspense(ctx: Context, props: Props) -> AsyncGenerator[Children, None]:
-    """
-    Suspense component for handling loading states.
+        new_builder = ElementBuilder(self.tag)
+        new_builder.props = converted_props
+        return new_builder
     
-    Args:
-        ctx: Component context
-        props: Must include 'children' and 'fallback'
-    """
-    children = props.get('children')
-    fallback = props.get('fallback')
-    timeout = props.get('timeout', 300)  # milliseconds
-    
-    if fallback:
-        # Show fallback first
-        yield fallback
-        
-        # Wait for timeout
-        await asyncio.sleep(timeout / 1000)
-    
-    # Then show children
-    yield children
+    def __getitem__(self, children):
+        """Handle children: h.div[...] or h.div(props)[...]"""
+        if not isinstance(children, (list, tuple)):
+            children = [children]
+        return create_element(self.tag, self.props, *children)
 
 
-# Example usage and helper functions
-def h(tag: Union[str, Component], props: Optional[Props] = None, *children: Children) -> Element:
-    """Hyperscript helper (shorthand for create_element)"""
+class MagicH:
+    """Magic h object supporting h.element and component lookup"""
+    
+    def __getattr__(self, name: str):
+        """
+        Handle h.element syntax:
+        - Lowercase: HTML elements (h.div, h.span)  
+        - Uppercase: Component/symbol lookup (h.MyComponent, h.Fragment)
+        """
+        if name[0].isupper():
+            # Uppercase: lookup component/symbol in caller's scope
+            frame = inspect.currentframe().f_back
+            locals_dict = frame.f_locals
+            globals_dict = frame.f_globals
+            
+            # Try locals first, then globals
+            if name in locals_dict:
+                component = locals_dict[name]
+                if callable(component) or hasattr(component, '__name__'):
+                    return ElementBuilder(component)
+            
+            if name in globals_dict:
+                component = globals_dict[name]
+                if callable(component) or hasattr(component, '__name__'):
+                    return ElementBuilder(component)
+            
+            # If not found, raise error
+            raise NameError(f"Component or symbol '{name}' not found in scope")
+        else:
+            # Lowercase: HTML element
+            return ElementBuilder(name)
+    
+    def __getitem__(self, children):
+        """Fragment shorthand: h[...]"""
+        if not isinstance(children, (list, tuple)):
+            children = [children]
+        return create_element(Fragment, None, *children)
+    
+    def __call__(self, *children, **props):
+        """Fragment shorthand: h(...) or original h(tag, props, children) for backwards compatibility"""
+        if len(children) == 0:
+            # h() - empty fragment
+            return create_element(Fragment, None)
+        elif len(children) >= 1 and isinstance(children[0], (str, type(Fragment))) or callable(children[0]):
+            # Backwards compatibility: h(tag, props, *children)
+            tag = children[0]
+            if len(children) >= 2 and isinstance(children[1], dict):
+                # h(tag, props, *children)
+                props_dict = children[1]
+                child_elements = children[2:]
+            else:
+                # h(tag, *children) 
+                props_dict = props if props else None
+                child_elements = children[1:]
+            return create_element(tag, props_dict, *child_elements)
+        else:
+            # h(children...) - fragment with children
+            return create_element(Fragment, None, *children)
+
+
+# Create the magic h instance
+h = MagicH()
+
+# Legacy function for backwards compatibility
+def create_element_legacy(tag: Union[str, Component], props: Optional[Props] = None, *children: Children) -> Element:
+    """Legacy hyperscript helper (shorthand for create_element)"""
     return create_element(tag, props, *children)
 
 
@@ -203,6 +345,7 @@ class JSX:
 # Export main API
 __all__ = [
     'Children', 'Props', 'Component', 'Element', 'Context',
-    'create_element', 'component', 'async_component', 'generator_component', 'async_generator_component',
-    'Fragment', 'lazy', 'suspense', 'h', 'JSX'
+    'create_element', 'component', 
+    'Fragment', 'Portal', 'Copy', 'Text', 'Raw',
+    'h', 'JSX'
 ]
