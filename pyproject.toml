@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crank-py"
+version = "0.1.0"
+description = "Python wrapper for Crank JavaScript framework with async/generator interop"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Crank Contributors"},
+]
+keywords = ["crank", "components", "async", "generators", "ui"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+]
+requires-python = ">=3.8"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[project.urls]
+Homepage = "https://crank.js.org"
+Repository = "https://github.com/bikeshaving/crank"
+Documentation = "https://crank.js.org/guides/introduction"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["crank*"]
+
+[tool.setuptools.package-data]
+crank = ["py.typed"]

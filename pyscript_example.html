@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crank.py PyScript Example</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .app { max-width: 600px; margin: 0 auto; }
+        .counter { padding: 20px; border: 1px solid #ccc; margin: 10px 0; }
+        .profile { background: #f5f5f5; padding: 15px; border-radius: 5px; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    
+    <py-script>
+        # Load Crank.py from GitHub release
+        from js import fetch, document
+        import asyncio
+        
+        # Load the Crank.py library
+        response = await fetch('https://cdn.jsdelivr.net/gh/bikeshaving/crank-py@main/crank.py')
+        exec(await response.text())
+        
+        # Now we can use Crank.py components
+        
+        # Simple greeting component
+        @component
+        def greeting(ctx, props):
+            name = props.get('name', 'World')
+            return h('h2', None, f'Hello, {name}!')
+        
+        # Counter component with state
+        @generator_component  
+        def counter(ctx, props):
+            count = 0
+            
+            # Simulate props updates (in real app, this would be handled by renderer)
+            updates = [
+                {'label': 'Counter', 'increment': 1},
+                {'label': 'Counter', 'increment': 1},
+                {'label': 'Counter', 'increment': 2},
+            ]
+            
+            for update in updates:
+                increment = update.get('increment', 1)
+                count += increment
+                label = update.get('label', 'Count')
+                
+                yield h('div', {'class': 'counter'},
+                    h('h3', None, label),
+                    h('p', None, f'Current value: {count}'),
+                    h('button', {'onclick': f'increment({increment})'}, f'+{increment}')
+                )
+        
+        # Async component
+        @async_component
+        async def user_info(ctx, props):
+            user_id = props.get('user_id', 1)
+            
+            # Simulate API delay
+            await asyncio.sleep(0.1)
+            
+            # Mock user data
+            user = {
+                'name': f'User {user_id}',
+                'email': f'user{user_id}@example.com',
+                'status': 'active'
+            }
+            
+            return h('div', {'class': 'profile'},
+                h('h3', None, user['name']),
+                h('p', None, f'Email: {user["email"]}'),
+                h('p', None, f'Status: {user["status"]}')
+            )
+        
+        # App component combining everything
+        @async_component
+        async def app(ctx, props):
+            return h('div', {'class': 'app'},
+                h('header', None,
+                    h('h1', None, 'Crank.py PyScript Demo')
+                ),
+                
+                h('main', None,
+                    # Simple greeting
+                    h(greeting, {'name': 'PyScript'}),
+                    
+                    # Counter component  
+                    h('section', None,
+                        h('h2', None, 'Counter Component')
+                        # Counter would be rendered by a proper renderer
+                    ),
+                    
+                    # Async user info
+                    h('section', None,
+                        h('h2', None, 'Async Component'),
+                        # This would be wrapped in Suspense in a real renderer
+                        await user_info(ctx, {'user_id': 42})
+                    )
+                ),
+                
+                h('footer', None,
+                    h('p', None, 'Powered by Crank.py running in PyScript!')
+                )
+            )
+        
+        # Simple renderer for demo
+        def render_element(element):
+            if isinstance(element, str):
+                return element
+            elif isinstance(element, (int, float)):
+                return str(element)
+            elif element is None:
+                return ''
+            elif hasattr(element, 'tag'):
+                # This is an Element
+                tag = element.tag
+                props = element.props or {}
+                children = element.children or []
+                
+                if callable(tag):
+                    # Component - would need proper context in real renderer
+                    result = tag(Context(), props)
+                    return render_element(result)
+                else:
+                    # HTML element
+                    attrs = ' '.join(f'{k}="{v}"' for k, v in props.items())
+                    attrs = f' {attrs}' if attrs else ''
+                    
+                    children_html = ''.join(render_element(child) for child in children)
+                    return f'<{tag}{attrs}>{children_html}</{tag}>'
+            elif isinstance(element, list):
+                return ''.join(render_element(child) for child in element)
+            else:
+                return str(element)
+        
+        # Render the app
+        ctx = Context()
+        app_element = await app(ctx, {})
+        html = render_element(app_element)
+        
+        # Insert into DOM
+        document.getElementById('app').innerHTML = html
+        
+        print("Crank.py demo loaded successfully!")
+        print("Check the rendered output above.")
+        
+    </py-script>
+    
+    <py-terminal></py-terminal>
+</body>
+</html>
