@@ -3,130 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crank.py - Greeting Example</title>
-    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
-    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 20px; 
-            background: #f5f5f5;
-        }
-        .example-container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        h1 { color: #333; margin-top: 0; }
-        .output { 
-            margin-top: 20px; 
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 4px;
-            border-left: 4px solid #007bff;
-        }
-        .comparison {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .code-block {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 4px;
-            padding: 15px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            overflow-x: auto;
-        }
-        .code-block h3 {
-            margin: 0 0 10px 0;
-            color: #495057;
-        }
-    </style>
+    <title>Greeting Example</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
 </head>
 <body>
-    <div class="example-container">
-        <h1>🐍 Crank.py - Greeting Example</h1>
-        <p>Simple component demonstrating basic rendering and props.</p>
-        
-        <div class="comparison">
-            <div class="code-block">
-                <h3>JavaScript (Original)</h3>
-                <pre>function Greeting({name = "World"}) {
-  return &lt;div&gt;Hello {name}&lt;/div&gt;;
-}
-
-renderer.render(&lt;Greeting name="Crank" /&gt;, document.body);</pre>
-            </div>
-            
-            <div class="code-block">
-                <h3>Python (Crank.py)</h3>
-                <pre>@component
-def Greeting(ctx):
-    for _ in ctx:
-        name = ctx.props.name or "World"
-        yield h.div[f"Hello {name}"]
-
-await renderer.render(h.Greeting(name="Crank"), document.body)</pre>
-            </div>
-        </div>
-        
-        <div class="output">
-            <strong>Output:</strong>
-            <div id="app"></div>
-        </div>
-    </div>
-
-    <py-script>
-        # Load Crank.py
-        from js import fetch, document
-        response = await fetch('https://cdn.jsdelivr.net/gh/bikeshaving/crank-py@main/crank.py')
-        exec(await response.text())
-        
-        # Define the Greeting component
-        @component
-        def Greeting(ctx):
-            for _ in ctx:
-                name = ctx.props.name or "World"
-                yield h.div[f"Hello {name}"]
-        
-        # Simple renderer for demo (replace with actual Crank DOM renderer)
-        def render_element(element):
-            if hasattr(element, 'tag'):
-                if callable(element.tag):
-                    # Component - render it
-                    ctx = Context()
-                    ctx.props = PropsProxy(element.props or {})
-                    result = element.tag(ctx)
-                    if hasattr(result, '__next__'):
-                        # Generator - get first yield
-                        return render_element(next(result))
-                    return render_element(result)
-                else:
-                    # HTML element
-                    tag = element.tag
-                    props = element.props or {}
-                    children = element.children or []
-                    
-                    attrs = ' '.join(f'{k}="{v}"' for k, v in props.items())
-                    attrs = f' {attrs}' if attrs else ''
-                    
-                    children_html = ''.join(render_element(child) for child in children)
-                    return f'<{tag}{attrs}>{children_html}</{tag}>'
-            else:
-                return str(element)
-        
-        # Render the greeting
-        greeting_element = h.Greeting(name="Crank")
-        html_output = render_element(greeting_element)
-        document.getElementById('app').innerHTML = html_output
-        
-        print("Greeting example rendered successfully!")
-    </py-script>
+    <div id="app"></div>
+    
+    <py-config>
+        {
+            "files": {
+                "../crank/__init__.py": "crank/__init__.py",
+                "../crank/dom.py": "crank/dom.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/crank.js": "crank_core",
+                    "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/dom.js": "crank_dom"
+                }
+            }
+        }
+    </py-config>
+    
+    <py-script src="greeting.py"></py-script>
 </body>
 </html>

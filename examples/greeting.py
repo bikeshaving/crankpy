@@ -1,7 +1,5 @@
 """
-Greeting Component - Python translation of examples/greeting.js
-
-Simple component that displays a greeting message.
+Greeting Component - Simple component that displays a greeting message
 """
 
 from crank import h, component
@@ -10,14 +8,10 @@ from js import document
 
 @component
 def Greeting(ctx):
+    # Simple generator component
     for _ in ctx:
-        name = ctx.props.name or "World"
-        yield h.div[f"Hello {name}"]
+        name = "World"  # Keep it simple for now
+        yield h("div", {}, f"Hello {name}!")
 
 # Render the component
-async def main():
-    await renderer.render(h.Greeting(name="Crank"), document.body)
-
-if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+renderer.render(h(Greeting, {}), document.body)
