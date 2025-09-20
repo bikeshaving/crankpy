@@ -129,16 +129,21 @@ def TodoItem(ctx, props):
         ]
 ```
 
-## Fragment Support with Props
+## Fragments: Just Use Lists!
 
-Need to group elements without extra DOM nodes? Crank.py supports fragments with props:
+Need to group elements without extra DOM nodes? Just use Python lists - Crank.js automatically wraps them in fragments:
 
 ```python
-# Fragment with key for React-style reconciliation
-h("", key="item-group")["Item 1", "Item 2"]
+# Simple fragments
+["Item 1", "Item 2"]
+[h.span["Hello"], h.span["World"]]
 
-# Or using the Fragment symbol
-h(Fragment, key="item-group")["Item 1", "Item 2"]
+# In context  
+h.div[
+    h.h1["Title"],
+    [h.p["Paragraph 1"], h.p["Paragraph 2"]],  # Fragment
+    h.footer["Footer"]
+]
 ```
 
 ## Why Python Needs This

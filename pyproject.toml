@@ -7,7 +7,7 @@ name = "crankpy"
 version = "0.1.0"
 description = "Python Components with Generators - A Python wrapper for Crank.js bringing JSX-like syntax to PyScript"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "Brian Kim", email = "briankimpossible@gmail.com"},
 ]
@@ -18,7 +18,6 @@ keywords = ["crank", "components", "pyscript", "pyodide", "generators", "ui", "h
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
