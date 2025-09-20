@@ -92,25 +92,25 @@ def test_magic_j_simple(page: Page, serve_inline_html):
     </py-config>
     
     <py-script>
-from crank import j, component
+from crank import h, component
 from crank.dom import renderer
 from js import document
 
 @component
 def SimpleDemo(ctx):
     for _ in ctx:
-        yield j.div(className="simple-demo")[
-            j.h1["Simple Magic J Demo"],
-            j.p["This is created with j syntax"],
-            j.ul[
-                j.li["Item 1"],
-                j.li["Item 2"], 
-                j.li["Item 3"]
+        yield h.div(className="simple-demo")[
+            h.h1["Simple Magic H Demo"],
+            h.p["This is created with h syntax"],
+            h.ul[
+                h.li["Item 1"],
+                h.li["Item 2"], 
+                h.li["Item 3"]
             ]
         ]
 
-# Render using j component call 
-renderer.render(j(SimpleDemo), document.body)
+# Render using h component call 
+renderer.render(h(SimpleDemo), document.body)
     </py-script>
 </body>
 </html>"""
@@ -162,18 +162,18 @@ def test_magic_j_basic(page: Page, serve_inline_html):
     </py-config>
     
     <py-script>
-from crank import j, component, h
+from crank import h, component
 from crank.dom import renderer
 from js import document
 
 @component
 def BasicDemo(ctx):
     for _ in ctx:
-        yield j.div(className="basic-demo")[
-            j.h1["Basic Magic J - HTML Elements Only"],
-            j.p["Paragraph 1"],
-            j.p["Paragraph 2"],
-            j.span["Span text"]
+        yield h.div(className="basic-demo")[
+            h.h1["Basic Magic H - HTML Elements Only"],
+            h.p["Paragraph 1"],
+            h.p["Paragraph 2"],
+            h.span["Span text"]
         ]
 
 # Use h() to avoid component lookup  

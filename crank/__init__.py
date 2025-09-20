@@ -335,8 +335,5 @@ Pythonic HyperScript - Supported Patterns
 # Hyperscript function with magic dot syntax
 h = MagicH()
 
-# Alias j for h (for backward compatibility with some tests)
-j = h
-
 # Exports
-__all__ = ['Element', 'Context', 'createElement', 'component', 'Fragment', 'Portal', 'Copy', 'Text', 'Raw', 'h', 'j']
+__all__ = ['Element', 'Context', 'createElement', 'component', 'Fragment', 'Portal', 'Copy', 'Text', 'Raw', 'h']
