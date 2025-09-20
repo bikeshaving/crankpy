@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "crankpy"
-version = "0.1.0"
+version = "0.1.1"
 description = "Python Components with Generators - A Python wrapper for Crank.js bringing JSX-like syntax to PyScript"
 readme = "README.md"
 license = "MIT"
