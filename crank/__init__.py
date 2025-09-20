@@ -220,10 +220,10 @@ Pythonic HyperScript - Supported Patterns
     h(MyComponent, prop1="value")
     h(MyComponent, prop1="value")["children"]
 
-7. Fragments:
-    h["children"]
-    h("", key="frag")["children"]
-    h(Fragment, key="frag")["children"]
+7. Fragments (just use Python lists!):
+    ["children"]  # Simple fragment
+    [h.span["Item 1"], h.span["Item 2"]]  # Fragment with elements
+    h("", key="frag")["children"]  # Fragment with props when needed
 
 8. Reserved keywords with spreading:
     h.div(**{"class": "container", **userProps})["Content"]
