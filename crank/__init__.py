@@ -82,8 +82,14 @@ class Context:
         return func
 
     def __iter__(self):
-        """Make context iterable for the generator pattern"""
-        return self._js_context
+        """Delegate to JS context's iterator protocol"""
+        # Let PyScript convert the JS iterator to Python iterator
+        return iter(self._js_context)
+
+    def __aiter__(self):
+        """Delegate to JS context's async iterator protocol"""
+        # Let PyScript convert the JS async iterator to Python async iterator
+        return aiter(self._js_context)
 
     def __getattr__(self, name):
         """Fallback to JS context for any missing attributes"""
@@ -121,8 +127,9 @@ def component(func: Callable) -> Callable:
 # MagicH element
 # Also known as Pythonic HyperScript
 class ElementBuilder:
-    def __init__(self, tag_or_component):
+    def __init__(self, tag_or_component, props=None):
         self.tag_or_component = tag_or_component
+        self.props = props
 
     def __call__(self, *args, **props):
         # Convert props with underscore to hyphen conversion
@@ -132,17 +139,27 @@ class ElementBuilder:
 
         # Process props to handle callables (lambdas, functions)
         processed_props = self._process_props_for_proxies(converted_props) if converted_props else {}
-        js_props = to_js(processed_props) if processed_props else None
 
-        # Create element with children as positional args
-        return createElement(self.tag_or_component, js_props, *args)
+        if args:
+            # If called with children args, create element immediately
+            js_props = to_js(processed_props) if processed_props else None
+            return createElement(self.tag_or_component, js_props, *args)
+        else:
+            # If called with just props, return new ElementBuilder with props for chaining
+            return ElementBuilder(self.tag_or_component, processed_props)
 
     def __getitem__(self, children):
         if not isinstance(children, (list, tuple)):
             children = [children]
 
-        # Create element with just children, no props
-        return createElement(self.tag_or_component, None, *children)
+        # Convert children to JS-compatible format
+        js_children = [to_js(child) if not isinstance(child, str) else child for child in children]
+        
+        # Use stored props if available
+        js_props = to_js(self.props) if self.props else None
+        
+        # Create element with children and props
+        return createElement(self.tag_or_component, js_props, *js_children)
 
     def _process_props_for_proxies(self, props):
         """Process props to create proxies for callables"""

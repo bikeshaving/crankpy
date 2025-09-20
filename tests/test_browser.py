@@ -25,7 +25,7 @@ def test_counter_example(page: Page, http_server):
     page.on("console", lambda msg: print(f"Console {msg.type}: {msg.text}"))
     
     # Wait for PyScript to load - wait for our component to render
-    page.wait_for_selector(".counter-container", timeout=10000)
+    page.wait_for_selector(".counter-display", timeout=10000)
     
     # Wait a bit more for our component to render
     time.sleep(2)
