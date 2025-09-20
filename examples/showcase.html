@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crank.py Showcase</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .showcase-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .logo h1 {
+            font-size: 2.5em;
+            margin: 0;
+            color: #333;
+        }
+        
+        .logo p {
+            color: #666;
+            margin: 10px 0;
+        }
+        
+        .features {
+            display: grid;
+            gap: 30px;
+        }
+        
+        section {
+            background: #f9f9f9;
+            padding: 25px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        section h2 {
+            margin-top: 0;
+            color: #444;
+        }
+        
+        /* Clock styles */
+        .clock {
+            font-size: 1.2em;
+            padding: 10px;
+            background: #e8f4f8;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        
+        /* Todo app styles */
+        .todo-app {
+            max-width: 500px;
+        }
+        
+        .add-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .todo-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .filters button {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .filters button.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        
+        .todo-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .todo-list li {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .todo-list li.completed span {
+            text-decoration: line-through;
+            color: #999;
+        }
+        
+        .todo-list input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .todo-list small {
+            color: #999;
+            margin-left: auto;
+        }
+        
+        .todo-footer {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        /* Syntax showcase styles */
+        .syntax-showcase {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+        }
+        
+        .syntax-showcase > * {
+            margin: 15px 0;
+        }
+        
+        /* General button styles */
+        button {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        button:hover:not(:disabled) {
+            background: #f0f0f0;
+            border-color: #ccc;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        button[type="submit"] {
+            background: #28a745;
+            color: white;
+            border-color: #28a745;
+        }
+        
+        button[type="submit"]:hover {
+            background: #218838;
+            border-color: #1e7e34;
+        }
+        
+        /* Footer styles */
+        footer {
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+            color: #666;
+        }
+        
+        footer a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        
+        footer a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Loading state */
+        py-script:not(:defined) {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <py-config>
+        {
+            "files": {
+                "../crank/__init__.py": "crank/__init__.py",
+                "../crank/dom.py": "crank/dom.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/crank.js": "crank_core",
+                    "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/dom.js": "crank_dom"
+                }
+            }
+        }
+    </py-config>
+    
+    <py-script src="showcase.py"></py-script>
+</body>
+</html>
