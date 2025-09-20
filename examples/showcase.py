@@ -68,6 +68,7 @@ def TodoApp(ctx):
     new_todo_text = ""
     filter_mode = "all"  # all, active, completed
     
+    @ctx.refresh
     def add_todo():
         nonlocal todos, next_id, new_todo_text
         if new_todo_text.strip():
@@ -78,34 +79,33 @@ def TodoApp(ctx):
             })
             next_id += 1
             new_todo_text = ""
-            ctx.refresh()
     
+    @ctx.refresh
     def toggle_todo(todo_id):
         nonlocal todos
         for todo in todos:
             if todo["id"] == todo_id:
                 todo["done"] = not todo["done"]
                 break
-        ctx.refresh()
     
+    @ctx.refresh
     def update_input(event):
         nonlocal new_todo_text
         new_todo_text = event.target.value
-        ctx.refresh()
     
     def handle_submit(event):
         event.preventDefault()
         add_todo()
     
+    @ctx.refresh
     def set_filter(mode):
         nonlocal filter_mode
         filter_mode = mode
-        ctx.refresh()
     
+    @ctx.refresh
     def clear_completed():
         nonlocal todos
         todos = [t for t in todos if not t["done"]]
-        ctx.refresh()
     
     for _ in ctx:
         # Filter todos based on current mode

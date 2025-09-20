@@ -49,10 +49,10 @@ def ManualDestructuringComponent(ctx, props):
 def PropsExample(ctx):
     counter = 0
     
+    @ctx.refresh
     def increment():
         nonlocal counter
         counter += 1
-        ctx.refresh()
     
     for _ in ctx:
         yield h.div(className="props-example")[
