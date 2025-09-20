@@ -1,4 +1,4 @@
-# 🔧 Crank.py
+# ⚙️ Crank.py
 
 **Python Components with Generators** - A Python wrapper for the Crank JavaScript framework, bringing modern component patterns to Python web development.
 
@@ -6,12 +6,14 @@
 [![Pyodide Compatible](https://img.shields.io/badge/Pyodide-Compatible-green)](https://pyodide.org)
 [![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+Built on the [Crank.js](https://crank.js.org/) framework
+
 ## ✨ Features
 
-- **🐍 Pythonic Hyperscript** - Clean `h.div["content"]` syntax inspired by JSX
+- **🐍 Pythonic Hyperscript** - Clean template `h.div["content"]` syntax inspired by JSX
 - **🔄 Generator Components** - Natural state management using Python generators  
 - **🎨 Lifecycle Decorators** - `@ctx.refresh`, `@ctx.after`, `@ctx.cleanup`
-- **🔗 Props Reassignment** - Reactive `for props in ctx:` pattern
+- **🔗 Props Loop** - Reactive `for props in ctx:` pattern
 - **⚡ Zero Build Step** - Pure Python, runs anywhere PyScript runs
 - **🌐 Browser Native** - Works in PyScript, Pyodide, and Node.js environments
 
@@ -69,7 +71,7 @@ from js import document
 @component
 def Greeting(ctx):
     for _ in ctx:
-        yield h.div["Hello, Crank.py! 🔧"]
+        yield h.div["Hello, Crank.py! ⚙️"]
 
 renderer.render(h(Greeting), document.body)
 ```
@@ -104,7 +106,7 @@ def Counter(ctx):
 ```python
 @component
 def UserProfile(ctx, props):
-    for props in ctx:  # 🔥 Props automatically update!
+    for props in ctx:  # Props automatically update!
         user_id = props.user_id
         user = fetch_user(user_id)  # Fetches when props change
         
@@ -192,19 +194,11 @@ h(MyComponent, title="Hello")[
 ### Fragments
 
 ```python
-# Simple fragments - just use Python lists!
-["Multiple", "children", "without", "wrapper"]
-[h.div["Item 1"], h.div["Item 2"]]
+# Simple fragment
+h["Multiple", "children", "without", "wrapper"]
 
-# Fragment with props (when you need keys, etc.)
+# Fragment with props (for keys, etc.)
 h("", key="my-fragment")["Child 1", "Child 2"]
-
-# In context
-h.div[
-    h.h1["Title"],
-    [h.p["Para 1"], h.p["Para 2"]],  # Simple fragment
-    h.footer["Footer"]
-]
 ```
 
 ## 🔄 Component Lifecycle
@@ -295,9 +289,9 @@ def TodoApp(ctx):
             h.input(
                 type="text", 
                 value=new_todo,
-                onInput=lambda e: setattr(sys.modules[__name__], 'new_todo', e.target.value)
+                oninput=lambda e: setattr(sys.modules[__name__], 'new_todo', e.target.value)
             ),
-            h.button(onClick=add_todo)["Add"],
+            h.button(onclick=add_todo)["Add"],
             h.ul[
                 [h.li(key=i)[
                     h.input(
@@ -391,8 +385,4 @@ Contributions welcome! Please read our [Contributing Guide](CONTRIBUTING.md) fir
 
 ## 📄 License
 
-MIT © 2024 - Built on the excellent [Crank.js](https://crank.js.org/) framework
-
----
-
-**Built with 🔧 Crank.py - The Future of Python Web Development**
+MIT © 2024
