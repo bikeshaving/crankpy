@@ -250,7 +250,7 @@ def ShowcaseApp(ctx):
                 h.p[
                     h.a(href="https://crank.js.org", target="_blank")["Crank.js"],
                     " | ",
-                    h.a(href="https://github.com/bikeshaving/crank-py", target="_blank")["GitHub"]
+                    h.a(href="https://github.com/bikeshaving/crankpy", target="_blank")["GitHub"]
                 ]
             ]
         ]

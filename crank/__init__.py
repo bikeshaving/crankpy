@@ -190,26 +190,44 @@ class FragmentBuilder:
 
 class MagicH:
     """
-Correct Patterns Used
+Pythonic HyperScript - Supported Patterns
+
 1. Simple elements with text:
     h.div["Hello World"]
     h.p["Some text"]
+
 2. Elements with props:
     h.input(type="text", value=text)
     h.div(className="my-class")["Content"]
-3. Nested elements:
+    
+3. Props with snake_case → kebab-case conversion:
+    h.div(data_test_id="button", aria_hidden="true")["Content"]
+    # Becomes: data-test-id="button" aria-hidden="true"
+
+4. Props spreading:
+    h.button(className="btn", **userProps)["Click me"]
+    h.div(id="main", **{**defaults, **overrides})["Content"]  # Multiple dict merge
+
+5. Nested elements:
     h.ul[
         h.li["Item 1"],
         h.li["Item 2"],
     ]
-4. Components:
+
+6. Components:
     h(MyComponent)
     h(MyComponent)["children"]
     h(MyComponent, prop1="value")
     h(MyComponent, prop1="value")["children"]
-5. Fragments:
+
+7. Fragments:
     h["children"]
     h("", key="frag")["children"]
+    h(Fragment, key="frag")["children"]
+
+8. Reserved keywords with spreading:
+    h.div(**{"class": "container", **userProps})["Content"]
+    # Or use className instead of class
     """
     def __getattr__(self, name: str):
         # Only support HTML elements, no dynamic component lookup

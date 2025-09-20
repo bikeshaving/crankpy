@@ -6,8 +6,8 @@ Thank you for your interest in contributing to Crank.py! This project aims to pr
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/bikeshaving/crank-py.git
-   cd crank-py
+   git clone https://github.com/bikeshaving/crankpy.git crankpy
+   cd crankpy
    ```
 
 2. Create a virtual environment:

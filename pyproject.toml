@@ -3,15 +3,18 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "crank-py"
+name = "crankpy"
 version = "0.1.0"
-description = "Python wrapper for Crank JavaScript framework with async/generator interop"
+description = "Python Components with Generators - A Python wrapper for Crank.js bringing JSX-like syntax to PyScript"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Crank Contributors"},
+    {name = "Brian Kim", email = "briankimpossible@gmail.com"},
 ]
-keywords = ["crank", "components", "async", "generators", "ui"]
+maintainers = [
+    {name = "Brian Kim", email = "briankimpossible@gmail.com"},
+]
+keywords = ["crank", "components", "pyscript", "pyodide", "generators", "ui", "hyperscript", "jsx", "browser"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -24,6 +27,9 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Environment :: Web Environment",
+    "Framework :: AsyncIO",
+    "Operating System :: OS Independent",
 ]
 requires-python = ">=3.8"
 dependencies = []
@@ -32,12 +38,17 @@ dependencies = []
 dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.21.0",
+    "playwright>=1.40.0",
+    "build>=0.10.0",
+    "twine>=4.0.0",
 ]
 
 [project.urls]
-Homepage = "https://crank.js.org"
-Repository = "https://github.com/bikeshaving/crank"
-Documentation = "https://crank.js.org/guides/introduction"
+Homepage = "https://github.com/bikeshaving/crankpy"
+Repository = "https://github.com/bikeshaving/crankpy"
+Documentation = "https://github.com/bikeshaving/crankpy#readme"
+"Bug Tracker" = "https://github.com/bikeshaving/crankpy/issues"
+"JavaScript Core" = "https://crank.js.org"
 
 [tool.setuptools.packages.find]
 where = ["."]

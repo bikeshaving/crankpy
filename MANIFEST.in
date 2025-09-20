@@ -1,0 +1,9 @@
+include README.md
+include LICENSE
+recursive-include crank *.py
+recursive-include examples *.py *.html *.md
+recursive-include tests *.py
+prune venv
+prune __pycache__
+global-exclude *.pyc
+global-exclude .DS_Store
