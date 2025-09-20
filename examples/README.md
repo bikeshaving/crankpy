@@ -100,9 +100,9 @@ h.div(className="styled")["content"]
 h(MyComponent)
 h(MyComponent, prop="value")
 
-# Fragments
-h["child1", "child2"]
-h("", key="frag")["children"]
+# Fragments (just use lists!)
+["child1", "child2"]
+[h.span["Item 1"], h.span["Item 2"]]
 ```
 
 ### Props Reassignment

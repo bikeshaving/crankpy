@@ -192,11 +192,19 @@ h(MyComponent, title="Hello")[
 ### Fragments
 
 ```python
-# Simple fragment
-h["Multiple", "children", "without", "wrapper"]
+# Simple fragments - just use Python lists!
+["Multiple", "children", "without", "wrapper"]
+[h.div["Item 1"], h.div["Item 2"]]
 
-# Fragment with props (for keys, etc.)
+# Fragment with props (when you need keys, etc.)
 h("", key="my-fragment")["Child 1", "Child 2"]
+
+# In context
+h.div[
+    h.h1["Title"],
+    [h.p["Para 1"], h.p["Para 2"]],  # Simple fragment
+    h.footer["Footer"]
+]
 ```
 
 ## 🔄 Component Lifecycle

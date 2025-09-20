@@ -204,7 +204,7 @@ def SyntaxShowcase(ctx):
                 "Styled div with object notation"
             ],
             
-            # Fragment with multiple children
+            # Fragment with key prop (when you need fragment properties)
             h("", key="fragment-example")[
                 h.span["Fragment "],
                 h.span["with "],
