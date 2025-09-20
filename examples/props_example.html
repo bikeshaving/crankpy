@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Props Example</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .props-example > div {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .old-style { background: #f0f0f0; }
+        .props-ctx { background: #e8f5e9; }
+        .destructured { background: #e3f2fd; }
+        
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <py-config>
+        {
+            "files": {
+                "../crank/__init__.py": "crank/__init__.py",
+                "../crank/dom.py": "crank/dom.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/crank.js": "crank_core",
+                    "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/dom.js": "crank_dom"
+                }
+            }
+        }
+    </py-config>
+    
+    <py-script src="props_example.py"></py-script>
+</body>
+</html>

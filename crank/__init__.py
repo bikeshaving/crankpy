@@ -24,9 +24,24 @@ Raw = Symbol.for_("crank.Raw")
 def component(func: Callable) -> Callable:
     """Universal component decorator for any function type"""
     
+    # Check function signature to determine how to call it
+    sig = inspect.signature(func)
+    params = list(sig.parameters.keys())
+    
     def wrapper(props, ctx):
-        """Wrapper that converts Crank's (props, ctx) calling convention to just (ctx)"""
-        return func(ctx)
+        """Wrapper that adapts Crank's (props, ctx) calling convention"""
+        if len(params) == 0:
+            # No parameters - just call the function
+            return func()
+        elif len(params) == 1:
+            # Single parameter - pass ctx
+            return func(ctx)
+        elif len(params) == 2:
+            # Two parameters - pass ctx, then props
+            return func(ctx, props)
+        else:
+            # More than 2 parameters is not supported
+            raise ValueError(f"Component function {func.__name__} has too many parameters. Expected 0-2, got {len(params)}")
     
     # Proxy the wrapper function for Crank to call
     return create_proxy(wrapper)
@@ -36,8 +51,8 @@ def component(func: Callable) -> Callable:
 # _proxy_cache = []
 
 class ElementBuilder:
-    def __init__(self, tag):
-        self.tag = tag
+    def __init__(self, tag_or_component):
+        self.tag_or_component = tag_or_component
     
     def __call__(self, *args, **props):
         # Convert props with underscore to hyphen conversion
@@ -50,14 +65,14 @@ class ElementBuilder:
         js_props = to_js(processed_props) if processed_props else None
         
         # Create element with children as positional args
-        return createElement(self.tag, js_props, *args)
+        return createElement(self.tag_or_component, js_props, *args)
     
     def __getitem__(self, children):
         if not isinstance(children, (list, tuple)):
             children = [children]
         
         # Create element with just children, no props
-        return createElement(self.tag, None, *children)
+        return createElement(self.tag_or_component, None, *children)
     
     def _process_props_for_proxies(self, props):
         """Process props to create proxies for callables"""
@@ -91,106 +106,22 @@ class ElementBuilder:
                 processed[key] = value
         return processed
 
-class ComponentBuilder:
-    def __init__(self, component_func):
-        self.component_func = component_func
-        self.props = {}
-    
-    def __call__(self, **props):
-        # Create the element immediately when called with props
-        if not props:
-            # No props, no children - create element now
-            return self._create_element()
-        
-        # Store props for later use with children
-        new_builder = ComponentBuilder(self.component_func)
-        new_builder.props = props
-        return new_builder
+
+class FragmentBuilder:
+    def __init__(self, js_props):
+        self.js_props = js_props
     
     def __getitem__(self, children):
-        # Create element with children
-        return self._create_element(children)
-    
-    def _create_element(self, children=None):
-        # Process props to create proxies for callables
-        props_to_convert = self.props.copy() if self.props else {}
+        if not isinstance(children, (list, tuple)):
+            children = [children]
         
-        # Add children to props if provided
-        if children:
-            if not isinstance(children, (list, tuple)):
-                children = [children]
-            props_to_convert['children'] = children
-        
-        # Create proxies for any callable values in props
-        if props_to_convert:
-            processed_props = self._process_props_for_proxies(props_to_convert)
-            js_props = to_js(processed_props)
-        else:
-            js_props = None
-        
-        return createElement(self.component_func, js_props)
-    
-    def _process_props_for_proxies(self, props):
-        """Recursively process props to create proxies for callables"""
-        processed = {}
-        for key, value in props.items():
-            if callable(value):
-                # Check if it's already a proxy
-                if hasattr(value, 'toString') or str(type(value)).startswith("<class 'pyodide.ffi.JsProxy'>"):
-                    # Already a proxy
-                    processed[key] = value
-                else:
-                    # Create a proxy for the callable
-                    processed[key] = create_proxy(value)
-            elif isinstance(value, dict):
-                # Recursively process nested dicts
-                processed[key] = self._process_props_for_proxies(value)
-            elif isinstance(value, (list, tuple)):
-                # Process lists/tuples for callables
-                processed_list = []
-                for item in value:
-                    if callable(item) and not (hasattr(item, 'toString') or str(type(item)).startswith("<class 'pyodide.ffi.JsProxy'>")):
-                        proxy = create_proxy(item)
-                        # _proxy_cache.append(proxy)
-                        processed_list.append(proxy)
-                    else:
-                        processed_list.append(item)
-                processed[key] = processed_list
-            else:
-                processed[key] = value
-        return processed
+        return createElement(Fragment, self.js_props, *children)
 
 
 class MagicH:
     def __getattr__(self, name: str):
-        if name[0].isupper():
-            # Component/Symbol lookup in caller's scope (and module globals)
-            frame = inspect.currentframe().f_back
-            locals_dict = frame.f_locals
-            globals_dict = frame.f_globals
-            
-            # Also check this module's globals for Crank symbols
-            module_globals = globals()
-            
-            component_func = None
-            if name in locals_dict:
-                component_func = locals_dict[name]
-            elif name in globals_dict:
-                component_func = globals_dict[name]
-            elif name in module_globals:
-                component_func = module_globals[name]
-            else:
-                raise NameError(f"Component or symbol '{name}' not found in scope")
-            
-            # For components, create a ComponentBuilder; for symbols, create ElementBuilder
-            if callable(component_func):
-                return ComponentBuilder(component_func)
-            else:
-                # Assume it's a Crank symbol
-                return ElementBuilder(component_func)
-        else:
-            # HTML element
-            return ElementBuilder(name)
+        # Only support HTML elements, no dynamic component lookup
+        return ElementBuilder(name)
     
     def __getitem__(self, tag_or_component):
         # Dynamic tag/component access: j[variable]
@@ -199,35 +130,69 @@ class MagicH:
             return ElementBuilder(tag_or_component)
         elif callable(tag_or_component):
             # Component function
-            return ComponentBuilder(tag_or_component)
+            return ElementBuilder(tag_or_component)
         else:
             raise ValueError(f"j[{tag_or_component}] expects a string tag name or callable component")
     
     def __call__(self, *args, **kwargs):
-        # Support both old h(tag, props, children) and new h(children, **props) syntax
+        # Support h(tag, props, children), h(Component, **props), h(Fragment, **props), and h(children) syntax
         if len(args) >= 1 and isinstance(args[0], str):
-            # Old syntax: h("div", props, children)
+            # String tag: h("div", props, children) or h("div", **props) 
             tag = args[0]
-            props = args[1] if len(args) > 1 and isinstance(args[1], dict) else {}
-            children = args[2:] if len(args) > 2 else ()
+            
+            if len(args) > 1 and isinstance(args[1], dict) and len(kwargs) == 0:
+                # Old syntax: h("div", {props}, children)
+                props = args[1]
+                children = args[2:]
+            else:
+                # New syntax: h("div", **props) - kwargs as props, no positional children
+                props = kwargs
+                children = args[1:]  # Any extra positional args as children
             
             # Process props for callables
             processed_props = self._process_props_for_proxies(props) if props else {}
             js_props = to_js(processed_props) if processed_props else None
             
-            return createElement(tag, js_props, *children)
+            # Empty string means Fragment - return FragmentBuilder for bracket syntax
+            if tag == "":
+                if children:
+                    # h("", {}, children) or h("", child1, child2) - direct fragment
+                    return createElement(Fragment, js_props, *children)
+                else:
+                    # h("", **props) - return FragmentBuilder to support h("", **props)["children"]
+                    return FragmentBuilder(js_props)
+            else:
+                if children:
+                    return createElement(tag, js_props, *children)
+                else:
+                    # No children - could be used with bracket syntax later
+                    return createElement(tag, js_props)
+                
+        elif len(args) >= 1 and args[0] is Fragment:
+            # Fragment with props: h(Fragment, **props) - return FragmentBuilder for bracket syntax  
+            props = kwargs
+            
+            # Process props for callables
+            processed_props = self._process_props_for_proxies(props) if props else {}
+            js_props = to_js(processed_props) if processed_props else None
+            
+            return FragmentBuilder(js_props)
+                
         elif len(args) >= 1 and callable(args[0]):
-            # Old syntax: h(Component, props)
+            # Component function: h(Component, **props)
             component_func = args[0]
-            props = args[1] if len(args) > 1 and isinstance(args[1], dict) else {}
+            children = args[1:] if len(args) > 1 else ()
+            
+            # Use kwargs as props
+            props = kwargs
             
             # Process props for callables
             processed_props = self._process_props_for_proxies(props) if props else {}
             js_props = to_js(processed_props) if processed_props else None
             
-            return createElement(component_func, js_props)
+            return createElement(component_func, js_props, *children)
         else:
-            # New syntax: h(children) for Fragment
+            # Fragment with children: h(children)
             return createElement(Fragment, None, *args)
     
     def _process_props_for_proxies(self, props):
@@ -243,5 +208,8 @@ class MagicH:
 # Hyperscript function with magic dot syntax
 h = MagicH()
 
+# Alias j for h (for backward compatibility with some tests)
+j = h
+
 # Exports
-__all__ = ['Element', 'Context', 'createElement', 'component', 'Fragment', 'Portal', 'Copy', 'Text', 'Raw', 'h']
+__all__ = ['Element', 'Context', 'createElement', 'component', 'Fragment', 'Portal', 'Copy', 'Text', 'Raw', 'h', 'j']

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animated Letters Example</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            position: relative;
+        }
+        
+        h1 {
+            margin-bottom: 40px;
+        }
+        
+        #app {
+            position: relative;
+            min-height: 100px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Animated Letters Example</h1>
+    <div id="app"></div>
+    
+    <py-config>
+        {
+            "files": {
+                "../crank/__init__.py": "crank/__init__.py",
+                "../crank/dom.py": "crank/dom.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/crank.js": "crank_core",
+                    "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/dom.js": "crank_dom"
+                }
+            }
+        }
+    </py-config>
+    
+    <py-script src="animated_letters.py"></py-script>
+</body>
+</html>
