@@ -113,4 +113,4 @@ from js import setInterval, clearInterval
 
 # Render the component
 if __name__ == "__main__":
-    renderer.render(h.Letters(), document.body)
+    renderer.render(h(Letters), document.body)

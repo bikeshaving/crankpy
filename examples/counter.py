@@ -11,22 +11,21 @@ def Counter(ctx):
     # State stored in generator scope
     count = 0
 
+    @ctx.refresh
     def increment(event):
         nonlocal count
         count += 1
-        ctx.refresh()
 
+    @ctx.refresh
     def decrement(event):
         nonlocal count
         count -= 1
-        ctx.refresh()
 
+    @ctx.refresh
     def reset(event):
         nonlocal count
         count = 0
-        ctx.refresh()
 
-    # Generator loop - state persists in this scope
     for _ in ctx:
         yield h.div[
             h.h2["Counter Example"],
