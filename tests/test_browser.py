@@ -109,8 +109,8 @@ def SimpleDemo(ctx):
             ]
         ]
 
-# Render using j component lookup
-renderer.render(j.SimpleDemo(), document.body)
+# Render using j component call 
+renderer.render(j(SimpleDemo), document.body)
     </py-script>
 </body>
 </html>"""
