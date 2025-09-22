@@ -108,9 +108,9 @@ h(MyComponent, prop="value")
 ### Props Reassignment
 ```python
 @component
-def ReactiveComponent(ctx, props):
+def DynamicComponent(ctx, props):
     for props in ctx:  # 🔥 New props each iteration
-        # Component automatically updates when parent changes props
+        # Component updates when parent changes props
         yield h.div[f"Current value: {props.value}"]
 ```
 
@@ -147,4 +147,4 @@ All examples are covered by the test suite in [`../tests/`](../tests/):
 
 ---
 
-**🔧 Built with Crank.py - Python Components with Generators**
+**🔧 Built with Crank.py - Python Frontend Framework with Async/Generators, Powered by Crank.js**

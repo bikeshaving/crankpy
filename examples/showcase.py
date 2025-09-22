@@ -13,7 +13,7 @@ import time
 def Logo():
     return h.div(className="logo")[
         h.h1["🔧 Crank.py"],
-        h.p["Python Components with Generators"]
+        h.p["Python Frontend Framework with Async/Generators, Powered by Crank.js"]
     ]
 
 # 2. Component with context only (1 param)

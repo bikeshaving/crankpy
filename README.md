@@ -1,6 +1,6 @@
 # ⚙️ Crank.py
 
-**Python Components with Generators** - A Python wrapper for the Crank JavaScript framework, bringing modern component patterns to Python web development.
+**Python Frontend Framework with Async/Generators, Powered by Crank.js** - Modern component patterns for Python web development.
 
 [![PyScript Compatible](https://img.shields.io/badge/PyScript-Compatible-blue)](https://pyscript.net)
 [![Pyodide Compatible](https://img.shields.io/badge/Pyodide-Compatible-green)](https://pyodide.org)
@@ -13,7 +13,7 @@ Built on the [Crank.js](https://crank.js.org/) framework
 - **🐍 Pythonic Hyperscript** - Clean template `h.div["content"]` syntax inspired by JSX
 - **🔄 Generator Components** - Natural state management using Python generators  
 - **🎨 Lifecycle Decorators** - `@ctx.refresh`, `@ctx.after`, `@ctx.cleanup`
-- **🔗 Props Loop** - Reactive `for props in ctx:` pattern
+- **🔗 Props Loop** - Dynamic `for props in ctx:` pattern
 - **⚡ Zero Build Step** - Pure Python, runs anywhere PyScript runs
 - **🌐 Browser Native** - Works in PyScript, Pyodide, and Node.js environments
 
@@ -229,7 +229,7 @@ def Timer(ctx):
         elapsed = time.time() - start_time
         yield h.div[f"Time: {elapsed:.1f}s"]
 
-# 3. Context + Props (reactive)
+# 3. Context + Props (dynamic)
 @component
 def TodoItem(ctx, props):
     for props in ctx:  # New props each iteration
@@ -370,7 +370,7 @@ python -m http.server 8000
 Traditional Python web frameworks use templates and server-side rendering. Crank.py brings component-based architecture to Python:
 
 - **🧩 Reusable Components** - Build UIs from composable pieces
-- **🔄 Reactive Updates** - Automatic re-rendering when state changes  
+- **🔄 Dynamic Updates** - Explicit re-rendering with ctx.refresh()  
 - **🎯 Generator-Powered** - Natural state management with Python generators
 - **🌐 Browser-Native** - Run Python directly in the browser via PyScript
 

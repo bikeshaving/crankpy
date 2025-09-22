@@ -238,7 +238,7 @@ class TestComponentPatterns:
                 elapsed = time.time() - start_time
                 yield h.div[f"Time: {elapsed:.1f}s"]
 
-        # 3. Context + Props (reactive)
+        # 3. Context + Props (dynamic)
         @component
         def TodoItem(ctx, props):
             for props in ctx:

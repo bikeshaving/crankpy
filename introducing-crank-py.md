@@ -153,7 +153,7 @@ Python web development has been stuck in the template era while frontend develop
 1. **Component-based architecture** - Components are Python functions, including async `async def :`,
 2. **Beautiful syntax** - JSX-like expressiveness with Python elegance
 3. **Generator-powered state** - Natural Python `for props of ctx: yield h.div["hello world"]`, state management with nonlocal
-3. **Props reassignment** - Reactive updates without complex effect systems
+3. **Props reassignment** - Dynamic updates without complex effect systems
 5. **No build step** - Pure Python, runs anywhere Python runs
 
 ## Getting Started
