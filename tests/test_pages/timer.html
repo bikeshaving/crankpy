@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timer Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+</head>
+<body>
+    <div id="app"></div>
+    
+    <py-script>
+        import time
+        from pyscript.js_modules import crank_core
+        from crank import h, component
+        from crank.dom import renderer
+        from js import document
+        
+        @component  
+        def Timer(ctx):
+            start_time = time.time()
+            
+            @ctx.schedule
+            def update():
+                ctx.refresh()
+                ctx.setTimeout(update, 1000)  # Update every second
+            
+            # Start the timer
+            update()
+            
+            for _ in ctx:
+                elapsed = time.time() - start_time
+                yield h.div(data_testid="timer")[f"Time: {elapsed:.1f}s"]
+        
+        renderer.render(h(Timer), document.getElementById("app"))
+    </py-script>
+    
+    <py-config>
+        [[fetch]]
+        files = ["../../crank/__init__.py", "../../crank/dom.py", "../../crank/html.py", "../../crank/async.py"]
+        to_folder = "crank"
+        
+        [js_modules.main]
+        "https://cdn.jsdelivr.net/npm/@b9g/crank@0.7.1/+esm" = "crank_core"
+    </py-config>
+</body>
+</html>
