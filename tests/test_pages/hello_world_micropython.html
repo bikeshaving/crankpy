@@ -3,28 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hello World Test</title>
+    <title>Hello World MicroPython Test</title>
     <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
     <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
 </head>
 <body>
     <div id="app"></div>
     
-    <py-script>
-        from crank import h, component
-        from crank.dom import renderer
-        from js import document
-        
-        @component
-        def Greeting(ctx):
-            for _ in ctx:
-                yield h.div(data_testid="greeting")["Hello, Crank.py! ⚙️"]
-        
-        renderer.render(h(Greeting), document.getElementById("app"))
-    </py-script>
-    
     <py-config type="json">
         {
+            "type": "micropython",
             "files": {
                 "../../crank/__init__.py": "./crank/__init__.py",
                 "../../crank/dom.py": "./crank/dom.py"
@@ -37,5 +25,18 @@
             }
         }
     </py-config>
+    
+    <py-script>
+        from crank import h, component
+        from crank.dom import renderer
+        from js import document
+        
+        @component
+        def Greeting(ctx):
+            for _ in ctx:
+                yield h.div(data_testid="greeting")["Hello, Crank.py MicroPython! ⚙️"]
+        
+        renderer.render(h(Greeting), document.getElementById("app"))
+    </py-script>
 </body>
 </html>

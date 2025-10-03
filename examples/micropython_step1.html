@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MicroPython Step 1: Import Crank</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+</head>
+<body>
+    <h1>Step 1: Import Crank Module</h1>
+    <div id="output">Loading...</div>
+
+    <py-config type="json">
+        {
+            "type": "micropython",
+            "packages": ["./crank"]
+        }
+    </py-config>
+
+    <py-script>
+        import js
+        
+        output = js.document.getElementById("output")
+        output.innerHTML = "Step 1: Testing crank module import<br><br>"
+        
+        def log(msg):
+            output.innerHTML += msg + "<br>"
+        
+        # Test 1: Just import the module
+        try:
+            import crank
+            log("✅ crank module imported successfully")
+            log(f"crank module: {crank}")
+            log(f"crank.__file__: {getattr(crank, '__file__', 'no __file__')}")
+        except Exception as e:
+            log(f"❌ crank import failed: {e}")
+            import traceback
+            log(f"Traceback: {traceback.format_exc()}")
+            
+        # Test 2: Check what's available
+        try:
+            log(f"crank attributes: {dir(crank)}")
+        except Exception as e:
+            log(f"❌ Cannot list crank attributes: {e}")
+            
+        # Test 3: Try to import h specifically
+        try:
+            from crank import h
+            log("✅ h imported successfully")
+            log(f"h type: {type(h)}")
+        except Exception as e:
+            log(f"❌ h import failed: {e}")
+            import traceback
+            log(f"Traceback: {traceback.format_exc()}")
+    </py-script>
+</body>
+</html>

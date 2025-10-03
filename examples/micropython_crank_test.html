@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MicroPython Crank Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+    <script src="https://unpkg.com/@bikeshaving/crank@0.5.4/dist/index.umd.js"></script>
+    <script>
+        window.crank_core = window.Crank;
+    </script>
+</head>
+<body>
+    <h1>MicroPython Crank Magic Syntax Test</h1>
+    <div id="output">Loading...</div>
+
+    <py-config type="json">
+        {
+            "type": "micropython",
+            "packages": ["./crank"]
+        }
+    </py-config>
+
+    <py-script>
+        import js
+        
+        output = js.document.getElementById("output")
+        output.innerHTML = "✅ MicroPython + Crank Test<br><br>"
+        
+        def log(msg):
+            output.innerHTML += msg + "<br>"
+        
+        # Test 1: Crank.js availability
+        try:
+            crank = js.crank_core
+            element = crank.createElement('div', None, 'test')
+            log(f"✅ Crank.js works, createElement returns: {type(element)}")
+            
+            # Test as_object_map on Crank elements
+            if hasattr(element, 'as_object_map'):
+                log("✅ Crank elements have as_object_map")
+                mapped = element.as_object_map()
+                log(f"as_object_map returns: {type(mapped)}")
+            else:
+                log("❌ Crank elements lack as_object_map")
+                
+        except Exception as e:
+            log(f"❌ Crank.js test failed: {e}")
+            
+        # Test 2: Our crank module
+        try:
+            from crank import h
+            log("✅ Crank module imported")
+            
+            # Test basic syntax
+            result1 = h.div["Hello"]
+            log("✅ h.div['Hello'] works")
+            
+            result2 = h.span()
+            log("✅ h.span() works")
+            
+            # Test the critical chainable syntax
+            try:
+                chainable = h.div(className="test")
+                log(f"h.div(className='test') returns: {type(chainable)}")
+                
+                if hasattr(chainable, '__getitem__'):
+                    result3 = chainable["Hello World"]
+                    log("🎉 Chainable syntax works on MicroPython!")
+                    log("✅ h.div(className='test')['Hello World'] success")
+                else:
+                    log("❌ Chainable result has no __getitem__")
+                    
+            except Exception as e:
+                log(f"❌ Chainable syntax error: {e}")
+                import traceback
+                log(f"Traceback: {traceback.format_exc()}")
+                
+        except Exception as e:
+            log(f"❌ Crank module error: {e}")
+            import traceback
+            log(f"Traceback: {traceback.format_exc()}")
+            
+        log("<br>=== Summary ===")
+        log("If chainable syntax works, then our magic syntax")
+        log("implementation is already MicroPython compatible!")
+    </py-script>
+</body>
+</html>

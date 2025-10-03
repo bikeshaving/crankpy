@@ -4,17 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nested Elements Test</title>
-    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
-    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
 </head>
 <body>
     <div id="app"></div>
     
     <py-script>
-        from pyscript.js_modules import crank_core
         from crank import h, component
         from crank.dom import renderer
         from js import document
+        
         
         @component
         def NestedList(ctx):
@@ -32,13 +32,19 @@
         renderer.render(h(NestedList), document.getElementById("app"))
     </py-script>
     
-    <py-config>
-        [[fetch]]
-        files = ["../../crank/__init__.py", "../../crank/dom.py", "../../crank/html.py", "../../crank/async.py"]
-        to_folder = "crank"
-        
-        [js_modules.main]
-        "https://cdn.jsdelivr.net/npm/@b9g/crank@0.7.1/+esm" = "crank_core"
+        <py-config type="json">
+        {
+            "files": {
+                "../../crank/__init__.py": "./crank/__init__.py",
+                "../../crank/dom.py": "./crank/dom.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://cdn.jsdelivr.net/npm/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://cdn.jsdelivr.net/npm/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
     </py-config>
 </body>
 </html>

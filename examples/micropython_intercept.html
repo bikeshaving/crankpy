@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MicroPython Subscript Interception</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+    <script>
+        // Mock createElement for testing
+        window.mock_createElement = function(tag, props, ...children) {
+            const element = {
+                tag: tag,
+                props: props,
+                children: children,
+                toString: function() { return `<${tag}>`; }
+            };
+            
+            // Add custom subscript behavior to the JS object
+            element.__getitem__ = function(key) {
+                console.log(`JS __getitem__ called with: ${key}`);
+                // Check if this is a chainable element
+                if (this._crank_tag && this._crank_props) {
+                    console.log(`Creating final element: ${this._crank_tag} with children: ${key}`);
+                    return window.mock_createElement(this._crank_tag, this._crank_props, key);
+                }
+                // Normal property access
+                return this[key];
+            };
+            
+            return element;
+        };
+    </script>
+</head>
+<body>
+    <h1>MicroPython: Subscript Interception Test</h1>
+    <div id="output">Loading...</div>
+
+    <script type="mpy">
+        import js
+        from pyscript.ffi import to_js
+        
+        output = js.document.getElementById("output")
+        output.innerHTML = "Testing subscript interception approaches<br><br>"
+        
+        def log(msg):
+            output.innerHTML += msg + "<br>"
+        
+        createElement = js.mock_createElement
+        
+        # Test 1: Can we intercept subscripting on JS objects with custom logic?
+        try:
+            log("=== TEST 1: JS Object Subscript Interception ===")
+            
+            # Create element (simulates h.div(className="test"))
+            element = createElement('div', {'className': 'test'})
+            log(f"Created element: {element}")
+            log(f"Element type: {type(element)}")
+            
+            # Mark it as chainable
+            element._crank_tag = 'div'
+            element._crank_props = {'className': 'test'}
+            log("✅ Marked as chainable")
+            
+            # Test subscripting (simulates element["Hello World"])
+            try:
+                result = element["Hello World"]
+                log(f"✅ Subscript result: {result}")
+                log(f"Result type: {type(result)}")
+                if hasattr(result, 'tag'):
+                    log(f"Result tag: {result.tag}")
+                    log(f"Result props: {result.props}")
+                    log(f"Result children: {result.children}")
+            except Exception as e:
+                log(f"❌ Subscript failed: {e}")
+                
+        except Exception as e:
+            log(f"❌ Test 1 failed: {e}")
+            
+        # Test 2: Alternative - Python proxy wrapper
+        try:
+            log("<br>=== TEST 2: Python Proxy Wrapper ===")
+            
+            class ChainableElementProxy:
+                def __init__(self, js_element, tag, props):
+                    self._js_element = js_element
+                    self._tag = tag
+                    self._props = props
+                    
+                def __getitem__(self, children):
+                    log(f"Python proxy __getitem__ called with: {children}")
+                    # Create final element with children
+                    final_element = createElement(self._tag, self._props, children)
+                    log(f"Created final element via proxy: {final_element}")
+                    return final_element
+                    
+                def __getattr__(self, name):
+                    # Delegate to JS element
+                    return getattr(self._js_element, name)
+                    
+                def __repr__(self):
+                    return f"ChainableProxy({self._tag}, {self._props})"
+            
+            # Create chainable proxy
+            js_element = createElement('span', {'id': 'test'})
+            proxy = ChainableElementProxy(js_element, 'span', {'id': 'test'})
+            log(f"Created proxy: {proxy}")
+            
+            # Test chainable syntax
+            final_result = proxy["Hello Proxy"]
+            log(f"✅ Proxy result: {final_result}")
+            if hasattr(final_result, 'tag'):
+                log(f"Final tag: {final_result.tag}")
+                log(f"Final children: {final_result.children}")
+                
+        except Exception as e:
+            log(f"❌ Test 2 failed: {e}")
+            import traceback
+            log(f"Traceback: {traceback.format_exc()}")
+            
+        # Test 3: Can we modify JS object prototype?
+        try:
+            log("<br>=== TEST 3: Prototype Modification ===")
+            
+            # Create a test object
+            test_obj = js.Object.new()
+            test_obj.data = "test_data"
+            
+            # Try to add a custom method to the object
+            def custom_subscript_handler(key):
+                log(f"Custom handler called with: {key}")
+                return f"handled_{key}"
+            
+            # Various ways to add the method
+            try:
+                test_obj._custom_getitem = custom_subscript_handler
+                # Try to override the subscript behavior
+                # This probably won't work, but worth testing
+                result = test_obj["custom_test"]
+                log(f"Prototype result: {result}")
+            except Exception as e:
+                log(f"Prototype modification failed: {e}")
+                
+        except Exception as e:
+            log(f"❌ Test 3 failed: {e}")
+            
+        # Test 4: Simple property-based approach
+        try:
+            log("<br>=== TEST 4: Property-Based Approach ===")
+            
+            # What if we just set a special property and check for it?
+            element = createElement('button', {'onClick': 'handler'})
+            
+            # Mark it as needing children
+            element._needs_children = True
+            element._crank_tag = 'button'
+            element._crank_props = {'onClick': 'handler'}
+            
+            log(f"Marked element: {element}")
+            log(f"_needs_children: {getattr(element, '_needs_children', 'not set')}")
+            
+            # When we access it with subscript, can we detect this?
+            try:
+                # This should just return undefined since "Click Me" isn't a property
+                result = element["Click Me"]
+                log(f"Direct subscript result: {result}")
+                log(f"Type: {type(result)}")
+                
+                # But we could create a wrapper function that checks _needs_children
+                def maybe_create_final_element(chainable_element, children):
+                    if hasattr(chainable_element, '_needs_children') and chainable_element._needs_children:
+                        log(f"Creating final element from chainable: {chainable_element._crank_tag}")
+                        return createElement(chainable_element._crank_tag, chainable_element._crank_props, children)
+                    else:
+                        return chainable_element[children]
+                
+                final = maybe_create_final_element(element, "Click Me")
+                log(f"✅ Final element: {final}")
+                
+            except Exception as e:
+                log(f"Property approach failed: {e}")
+                
+        except Exception as e:
+            log(f"❌ Test 4 failed: {e}")
+            
+        log("<br>=== CONCLUSIONS ===")
+        log("Which approach works for intercepting subscript operations?")
+        log("1. JS __getitem__ override?")
+        log("2. Python proxy wrapper?") 
+        log("3. Prototype modification?")
+        log("4. Property-based detection?")
+    </script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyScript 2025.8.1 MicroPython Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <h1>PyScript 2025.8.1: MicroPython FFI Test</h1>
+    <div id="output">Loading...</div>
+
+    <script type="mpy">
+        import js
+        
+        output = js.document.getElementById("output")
+        output.innerHTML = "Testing PyScript 2025.8.1 MicroPython FFI<br><br>"
+        
+        def log(msg):
+            output.innerHTML += msg + "<br>"
+        
+        # Test 1: Runtime detection
+        try:
+            import sys
+            log(f"Runtime: {sys.implementation.name}")
+            log(f"Python version: {sys.version}")
+        except:
+            log("Runtime: could not detect")
+        
+        # Test 2: FFI availability in 2025.8.1
+        ffi_tests = [
+            ("pyscript.ffi", "from pyscript.ffi import to_js, create_proxy"),
+            ("pyodide.ffi", "from pyodide.ffi import to_js, create_proxy"),
+            ("micropython.ffi", "from micropython.ffi import to_js, create_proxy")
+        ]
+        
+        working_ffi = []
+        
+        for name, import_stmt in ffi_tests:
+            try:
+                exec(import_stmt)
+                log(f"✅ {name} available")
+                working_ffi.append(name)
+            except Exception as e:
+                log(f"❌ {name} failed: {e}")
+        
+        # Test 3: Unified pyscript.ffi functionality
+        if "pyscript.ffi" in working_ffi:
+            log("<br>🎉 Unified pyscript.ffi is available!")
+            
+            try:
+                from pyscript.ffi import to_js, create_proxy
+                
+                # Test basic functionality
+                test_dict = {"test": "value", "number": 42}
+                js_obj = to_js(test_dict)
+                log(f"✅ to_js works: {js_obj}")
+                
+                def test_func():
+                    return "Hello from proxy"
+                
+                proxy = create_proxy(test_func)
+                log(f"✅ create_proxy works: {proxy}")
+                
+            except Exception as e:
+                log(f"❌ pyscript.ffi functionality failed: {e}")
+        
+        # Test 4: Object subscriptability
+        try:
+            from js import Object
+            test_obj = Object.new()
+            test_obj.test = "value"
+            
+            if hasattr(test_obj, 'as_object_map'):
+                log("✅ as_object_map available")
+                mapped = test_obj.as_object_map()
+                
+                # Test dynamic type patching
+                mapped_type = type(mapped)
+                log(f"as_object_map type: {mapped_type}")
+                
+                def custom_getitem(self, key):
+                    return f"patched_{key}"
+                
+                mapped_type.__getitem__ = custom_getitem
+                result = mapped["test"]
+                log(f"✅ Dynamic patching works: {result}")
+                
+            else:
+                log("❌ as_object_map not available")
+                
+        except Exception as e:
+            log(f"❌ Object test failed: {e}")
+            
+        log("<br>=== SUMMARY ===")
+        if "pyscript.ffi" in working_ffi:
+            log("🎉 Our crank module should work with pyscript.ffi imports!")
+        else:
+            log("Need to use alternative FFI import for compatibility")
+    </script>
+</body>
+</html>

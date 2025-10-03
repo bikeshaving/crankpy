@@ -1,4 +1,4 @@
-.PHONY: test test-unit test-integration test-main build serve-examples serve-test-server serve-pyscript-cli-test clean help
+.PHONY: test test-unit test-integration test-main build serve clean help
 
 help:  ## Show this help message
 	@echo "Available commands:"
@@ -17,21 +17,11 @@ test-integration:  ## Run Playwright integration tests
 test-main:  ## Run main test suite (alias for test-unit)
 	uv run python -m pytest tests/test_crank.py -v
 
-serve-test-server:  ## Start test server for integration tests (http://localhost:3333)
-	uv run python -m http.server 3333
-
-serve-pyscript-cli-test:  ## Start server for PyScript CLI compatibility test (http://localhost:3334)
-	@echo "Starting PyScript CLI compatibility test at http://localhost:3334"
-	@echo "Testing crankpy integration with PyScript CLI configuration"
-	cd test_pyscript_cli && uv run python -m http.server 3334
+serve:  ## Start local server on port 3333
+	python3 -m http.server 3333
 
 build:  ## Build package for distribution
 	uv run python -m build
-
-serve-examples:  ## Start local server for examples (http://localhost:3333/examples/)
-	@echo "Starting server at http://localhost:3333"
-	@echo "Examples available at http://localhost:3333/examples/"
-	uv run python -m http.server 3333
 
 clean:  ## Clean build artifacts
 	rm -rf dist/ build/ *.egg-info/ .pytest_cache/

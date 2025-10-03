@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MicroPython Verification Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <h1>MicroPython: Rigorous Verification</h1>
+    <div id="output">Loading...</div>
+
+    <script type="mpy">
+        import js
+        
+        output = js.document.getElementById("output")
+        output.innerHTML = "RIGOROUS TEST: Does direct subscripting really work?<br><br>"
+        
+        def log(msg):
+            output.innerHTML += msg + "<br>"
+        
+        # Test 1: More thorough JS object subscripting test
+        try:
+            log("=== THOROUGH JS OBJECT TEST ===")
+            test_obj = js.Object.new()
+            test_obj.existing_prop = "I exist"
+            test_obj.number_prop = 123
+            
+            log(f"Object type: {type(test_obj)}")
+            log(f"Object: {test_obj}")
+            
+            # Test 1a: Access existing property via subscript
+            try:
+                result1 = test_obj["existing_prop"]
+                log(f"✅ Existing property via subscript: {result1}")
+            except Exception as e:
+                log(f"❌ Existing property via subscript failed: {e}")
+                
+            # Test 1b: Access non-existing property via subscript
+            try:
+                result2 = test_obj["non_existing_prop"]
+                log(f"⚠️ Non-existing property returned: {result2}")
+            except Exception as e:
+                log(f"✅ Non-existing property correctly failed: {e}")
+                
+            # Test 1c: Set property via subscript
+            try:
+                test_obj["new_prop"] = "set via subscript"
+                verify = test_obj.new_prop
+                log(f"✅ Set via subscript, verify via dot: {verify}")
+            except Exception as e:
+                log(f"❌ Set via subscript failed: {e}")
+                
+        except Exception as e:
+            log(f"❌ JS Object tests failed: {e}")
+            
+        # Test 2: Verify __getitem__ monkey patching actually works
+        try:
+            log("<br>=== __GETITEM__ MONKEY PATCH VERIFICATION ===")
+            
+            test_obj2 = js.Object.new()
+            test_obj2.original = "original_value"
+            
+            # Before patching
+            try:
+                before_result = test_obj2["original"]
+                log(f"Before patch: test_obj2['original'] = {before_result}")
+            except Exception as e:
+                log(f"Before patch failed: {e}")
+            
+            # Add custom __getitem__
+            def custom_getitem(key):
+                log(f"CUSTOM __getitem__ called with key: {key}")
+                if key == "special":
+                    return "CUSTOM_RESPONSE"
+                else:
+                    # Try to get original behavior
+                    try:
+                        return getattr(test_obj2, key)
+                    except:
+                        return f"CUSTOM_FALLBACK_FOR_{key}"
+            
+            test_obj2.__getitem__ = custom_getitem
+            
+            # Test the custom behavior
+            try:
+                special_result = test_obj2["special"]
+                log(f"Custom behavior: test_obj2['special'] = {special_result}")
+                
+                original_result = test_obj2["original"]
+                log(f"Original property: test_obj2['original'] = {original_result}")
+                
+                missing_result = test_obj2["missing"]
+                log(f"Missing property: test_obj2['missing'] = {missing_result}")
+                
+            except Exception as e:
+                log(f"❌ Custom __getitem__ test failed: {e}")
+                
+        except Exception as e:
+            log(f"❌ __getitem__ monkey patch failed: {e}")
+            
+        # Test 3: Compare with Pyodide behavior expectation
+        try:
+            log("<br>=== COMPARISON WITH EXPECTED PYODIDE BEHAVIOR ===")
+            
+            # This should behave like Pyodide JsProxy (not subscriptable)
+            normal_obj = js.Object.new()
+            normal_obj.test = "value"
+            
+            log(f"Normal object type: {type(normal_obj)}")
+            
+            # In Pyodide, this should fail with "JsProxy object is not subscriptable"
+            try:
+                pyodide_style_result = normal_obj["test"]
+                log(f"⚠️ UNEXPECTED: Normal subscripting works in MicroPython: {pyodide_style_result}")
+                log("This suggests MicroPython JS objects ARE naturally subscriptable!")
+            except Exception as e:
+                log(f"✅ Expected Pyodide-like behavior: {e}")
+                
+        except Exception as e:
+            log(f"❌ Comparison test failed: {e}")
+            
+        # Test 4: Check what type of objects we're dealing with
+        try:
+            log("<br>=== OBJECT TYPE ANALYSIS ===")
+            
+            obj = js.Object.new()
+            log(f"js.Object.new() type: {type(obj)}")
+            log(f"js.Object.new() dir: {[attr for attr in dir(obj) if not attr.startswith('_')]}")
+            
+            # Check for MicroPython-specific attributes
+            mp_attrs = ['__getitem__', '__setitem__', '__contains__']
+            for attr in mp_attrs:
+                has_attr = hasattr(obj, attr)
+                log(f"Has {attr}: {has_attr}")
+                
+        except Exception as e:
+            log(f"❌ Type analysis failed: {e}")
+            
+        log("<br>=== VERDICT ===")
+        log("If normal JS objects are subscriptable in MicroPython,")
+        log("then our chainable syntax might work differently than expected!")
+    </script>
+</body>
+</html>

@@ -341,11 +341,43 @@ class ChainableElement:
             return self._element == other._element
         return self._element == other
 
+class MicroPythonChainableProxy:
+    """Chainable element proxy for MicroPython runtime."""
+    
+    def __init__(self, js_element, tag, props):
+        self._js_element = js_element
+        self._tag = tag
+        self._props = props
+        
+    def __getitem__(self, children):
+        """Create final element with children when subscripted."""
+        if not isinstance(children, (list, tuple)):
+            children = [children]
+        js_props = to_js(self._props) if self._props else None
+        return createElement(self._tag, js_props, *children)
+        
+    def __getattr__(self, name):
+        """Delegate attribute access to the wrapped JS element."""
+        return getattr(self._js_element, name)
+        
+    def __repr__(self):
+        return f"MicroPythonChainableProxy({self._tag}, {self._props})"
+
+
 class ElementBuilder:
     def __init__(self, tag_or_component, props=None):
         self.tag_or_component = tag_or_component
         self.props = props
         self._element = None  # Lazy-created element
+    
+    def _is_micropython(self):
+        """Detect if running on MicroPython runtime."""
+        import sys
+        return sys.implementation.name == 'micropython'
+    
+    def _create_micropython_chainable(self, element, props):
+        """Create MicroPython chainable proxy."""
+        return MicroPythonChainableProxy(element, self.tag_or_component, props)
     
     def _ensure_element(self):
         """Create the element if it doesn't exist yet"""
@@ -404,7 +436,20 @@ class ElementBuilder:
             return createElement(self.tag_or_component, None)
     
     def _make_chainable_element(self, element, props):
-        """Convert a JsProxy element into a chainable version using as_object_map"""
+        """Convert element into a chainable version using runtime-specific approach"""
+        try:
+            if self._is_micropython():
+                # MicroPython: Use simple Python proxy wrapper
+                return self._create_micropython_chainable(element, props)
+            else:
+                # Pyodide: Use as_object_map approach with dynamic type patching
+                return self._make_pyodide_chainable_element(element, props)
+        except Exception:
+            # Fallback to original element if anything goes wrong
+            return element
+    
+    def _make_pyodide_chainable_element(self, element, props):
+        """Create Pyodide chainable element using as_object_map approach"""
         try:
             # Ensure the as_object_map type is patched
             _patch_as_object_map_type()

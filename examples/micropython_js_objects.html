@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MicroPython JS Object Manipulation</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <h1>MicroPython: JS Object Capabilities</h1>
+    <div id="output">Loading...</div>
+
+    <script type="mpy">
+        import js
+        from pyscript.ffi import to_js, create_proxy
+        
+        output = js.document.getElementById("output")
+        output.innerHTML = "Testing MicroPython JS object manipulation<br><br>"
+        
+        def log(msg):
+            output.innerHTML += msg + "<br>"
+        
+        # Test 1: Basic JS object creation and access
+        try:
+            test_obj = js.Object.new()
+            test_obj.name = "test"
+            test_obj.value = 42
+            
+            log(f"✅ JS object created: {test_obj}")
+            log(f"Property access: name={test_obj.name}, value={test_obj.value}")
+            
+            # Test direct subscripting (should fail)
+            try:
+                result = test_obj["name"]
+                log(f"✅ Direct subscripting works: {result}")
+            except Exception as e:
+                log(f"❌ Direct subscripting fails: {e}")
+                
+        except Exception as e:
+            log(f"❌ JS object test failed: {e}")
+            
+        # Test 2: Can we add __getitem__ to JS objects?
+        try:
+            test_obj2 = js.Object.new()
+            test_obj2.data = "hello"
+            
+            # Try to monkey-patch __getitem__
+            def custom_getitem(key):
+                log(f"Custom __getitem__ called with: {key}")
+                try:
+                    return getattr(test_obj2, key)
+                except:
+                    return f"not_found_{key}"
+            
+            # Attempt 1: Direct assignment
+            try:
+                test_obj2.__getitem__ = custom_getitem
+                result = test_obj2["data"]
+                log(f"✅ Direct __getitem__ assignment works: {result}")
+            except Exception as e:
+                log(f"❌ Direct __getitem__ assignment fails: {e}")
+                
+            # Attempt 2: Using setattr
+            try:
+                setattr(test_obj2, '__getitem__', custom_getitem)
+                result2 = test_obj2["data"]
+                log(f"✅ setattr __getitem__ works: {result2}")
+            except Exception as e:
+                log(f"❌ setattr __getitem__ fails: {e}")
+                
+        except Exception as e:
+            log(f"❌ __getitem__ test failed: {e}")
+            
+        # Test 3: Create Python wrapper class
+        try:
+            class ChainableJSObject:
+                def __init__(self, js_obj, tag=None, props=None):
+                    self._js_obj = js_obj
+                    self._tag = tag
+                    self._props = props
+                    
+                def __getitem__(self, children):
+                    log(f"ChainableJSObject.__getitem__ called with: {children}")
+                    # Simulate createElement with children
+                    return f"<{self._tag} props={self._props}>{children}</{self._tag}>"
+                    
+                def __getattr__(self, name):
+                    return getattr(self._js_obj, name)
+            
+            # Test the wrapper
+            js_obj = js.Object.new()
+            js_obj.test = "value"
+            
+            wrapper = ChainableJSObject(js_obj, "div", {"className": "test"})
+            
+            # Test property delegation
+            log(f"Property delegation: {wrapper.test}")
+            
+            # Test chainable syntax
+            result = wrapper["Hello World"]
+            log(f"✅ Wrapper approach works: {result}")
+            
+        except Exception as e:
+            log(f"❌ Wrapper test failed: {e}")
+            import traceback
+            log(f"Traceback: {traceback.format_exc()}")
+            
+        # Test 4: Alternative - use Python dict that looks like JS object
+        try:
+            class JSLikeDict(dict):
+                def __init__(self, js_obj, tag=None, props=None):
+                    super().__init__()
+                    self._js_obj = js_obj
+                    self._tag = tag
+                    self._props = props
+                    
+                def __getitem__(self, children):
+                    if children in self:
+                        return super().__getitem__(children)
+                    else:
+                        # This is our chainable behavior
+                        log(f"JSLikeDict chainable: {children}")
+                        return f"Element({self._tag}, {self._props}, [{children}])"
+                        
+                def __getattr__(self, name):
+                    return getattr(self._js_obj, name)
+            
+            js_obj2 = js.Object.new()
+            js_obj2.test = "value2"
+            
+            dict_wrapper = JSLikeDict(js_obj2, "span", {"id": "test"})
+            
+            # Test chainable behavior
+            result = dict_wrapper["Hello Dict"]
+            log(f"✅ Dict wrapper works: {result}")
+            
+        except Exception as e:
+            log(f"❌ Dict wrapper failed: {e}")
+            
+        log("<br>=== SUMMARY ===")
+        log("If wrapper approaches work, we can implement")
+        log("chainable syntax for MicroPython without as_object_map!")
+    </script>
+</body>
+</html>

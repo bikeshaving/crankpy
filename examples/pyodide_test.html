@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pyodide Runtime Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.2.4/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.2.4/core.js"></script>
+</head>
+<body>
+    <h1>Runtime Test</h1>
+    <div id="output"></div>
+
+    <py-script>
+        from js import document
+        
+        output = document.getElementById("output")
+        output.innerHTML = "<p>✅ Pyodide is working!</p>"
+        
+        # Test as_object_map availability (should work in Pyodide)
+        try:
+            from js import Object
+            test_obj = Object.new()
+            test_obj.test = "value"
+            
+            if hasattr(test_obj, 'as_object_map'):
+                output.innerHTML += "<p>✅ as_object_map available</p>"
+                mapped = test_obj.as_object_map()
+                result = mapped["test"]
+                output.innerHTML += f"<p>✅ as_object_map subscripting works: {result}</p>"
+            else:
+                output.innerHTML += "<p>❌ as_object_map not available</p>"
+                
+        except Exception as e:
+            output.innerHTML += f"<p>❌ Error: {e}</p>"
+            
+        # Test direct subscripting
+        try:
+            result = test_obj["test"]
+            output.innerHTML += f"<p>✅ Direct subscripting: {result}</p>"
+        except Exception as e:
+            output.innerHTML += f"<p>❌ Direct subscripting fails: {e}</p>"
+    </py-script>
+</body>
+</html>

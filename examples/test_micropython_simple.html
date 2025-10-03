@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MicroPython Simple Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.2.4/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.2.4/core.js"></script>
+</head>
+<body>
+    <div id="output"></div>
+    
+    <py-config>
+        {
+            "interpreter": "micropython"
+        }
+    </py-config>
+
+    <py-script>
+        from js import document
+        
+        output = document.getElementById("output")
+        
+        def log(msg):
+            output.innerHTML += f"<div>{msg}</div>"
+        
+        log("=== MicroPython Runtime Test ===")
+        
+        # Test 1: Basic FFI
+        try:
+            from pyscript.ffi import to_js, create_proxy
+            log("✅ pyscript.ffi works")
+        except Exception as e:
+            log(f"❌ pyscript.ffi: {e}")
+            
+        # Test 2: Check for as_object_map
+        try:
+            from js import Object
+            test_obj = Object.new()
+            test_obj.test = "value"
+            
+            if hasattr(test_obj, 'as_object_map'):
+                log("✅ as_object_map available")
+                mapped = test_obj.as_object_map()
+                log(f"as_object_map type: {type(mapped)}")
+            else:
+                log("❌ as_object_map NOT available")
+                
+        except Exception as e:
+            log(f"❌ as_object_map test: {e}")
+            
+        # Test 3: Basic object subscripting
+        try:
+            test_obj = Object.new()
+            test_obj.key = "value"
+            
+            # Try direct subscripting
+            try:
+                result = test_obj["key"]
+                log(f"✅ Direct subscripting works: {result}")
+            except Exception as e:
+                log(f"❌ Direct subscripting fails: {e}")
+                
+        except Exception as e:
+            log(f"❌ Object test: {e}")
+            
+        log("=== Test Complete ===")
+    </py-script>
+</body>
+</html>

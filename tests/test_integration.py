@@ -3,6 +3,7 @@ Full integration tests for Crank.py using Playwright
 
 These tests run actual components in a real browser environment
 without mocking, testing the complete PyScript + Crank.js + Crank.py stack.
+Tests are organized by Python runtime implementation (Pyodide vs MicroPython).
 """
 
 import pytest
@@ -10,11 +11,11 @@ from playwright.sync_api import Page, expect
 import time
 
 
-class TestBasicRendering:
-    """Test basic component rendering in browser"""
+class TestPyodideRuntime:
+    """Test Pyodide runtime (default PyScript runtime)"""
     
-    def test_hello_world_renders(self, page: Page):
-        """Test that a basic Hello World component renders"""
+    def test_pyodide_hello_world_renders(self, page: Page):
+        """Test that a basic Hello World component renders with Pyodide"""
         page.goto("http://localhost:3333/tests/test_pages/hello_world.html")
         
         # Wait for PyScript to load and component to render
@@ -23,8 +24,8 @@ class TestBasicRendering:
         greeting = page.locator("[data-testid='greeting']")
         expect(greeting).to_contain_text("Hello, Crank.py! ⚙️")
     
-    def test_nested_elements_render(self, page: Page):
-        """Test that nested element structures render correctly"""
+    def test_pyodide_nested_elements_render(self, page: Page):
+        """Test that nested element structures render correctly with Pyodide"""
         page.goto("http://localhost:3333/tests/test_pages/nested_elements.html")
         
         page.wait_for_selector("[data-testid='list']", timeout=10000)
@@ -39,26 +40,8 @@ class TestBasicRendering:
         expect(items.nth(1)).to_contain_text("Item 2")
         expect(items.nth(2)).to_contain_text("nested")
     
-    def test_props_render_correctly(self, page: Page):
-        """Test that component props render correctly"""
-        page.goto("http://localhost:3333/tests/test_pages/props_test.html")
-        
-        page.wait_for_selector("[data-testid='user-profile']", timeout=10000)
-        
-        profile = page.locator("[data-testid='user-profile']")
-        expect(profile).to_be_visible()
-        
-        # Check user data is rendered
-        expect(profile.locator("h2")).to_contain_text("Test User")
-        expect(profile.locator("p")).to_contain_text("Test bio")
-        expect(profile.locator("img")).to_have_attribute("src", "avatar.jpg")
-
-
-class TestInteractivity:
-    """Test interactive components and event handling"""
-    
-    def test_counter_increments(self, page: Page):
-        """Test that counter component increments correctly"""
+    def test_pyodide_counter_increments(self, page: Page):
+        """Test that counter component increments correctly with Pyodide"""
         page.goto("http://localhost:3333/tests/test_pages/counter.html")
         
         page.wait_for_selector("[data-testid='counter']", timeout=10000)
@@ -79,8 +62,8 @@ class TestInteractivity:
         increment_btn.click()
         expect(count_display).to_contain_text("Count: 3")
     
-    def test_counter_decrements(self, page: Page):
-        """Test that counter component decrements correctly"""
+    def test_pyodide_counter_decrements(self, page: Page):
+        """Test that counter component decrements correctly with Pyodide"""
         page.goto("http://localhost:3333/tests/test_pages/counter.html")
         
         page.wait_for_selector("[data-testid='counter']", timeout=10000)
@@ -97,8 +80,81 @@ class TestInteractivity:
         # Then decrement
         decrement_btn.click()
         expect(count_display).to_contain_text("Count: 1")
+
+
+class TestMicroPythonRuntime:
+    """Test MicroPython runtime compatibility"""
     
-    def test_todo_app_functionality(self, page: Page):
+    def test_micropython_hello_world_renders(self, page: Page):
+        """Test that a basic Hello World component renders in MicroPython"""
+        page.goto("http://localhost:3333/tests/test_pages/hello_world_micropython.html")
+        
+        # Wait for PyScript to load and component to render
+        page.wait_for_selector("[data-testid='greeting']", timeout=10000)
+        
+        greeting = page.locator("[data-testid='greeting']")
+        expect(greeting).to_contain_text("Hello, Crank.py MicroPython! ⚙️")
+    
+    def test_micropython_nested_elements_render(self, page: Page):
+        """Test that nested element structures render correctly in MicroPython"""
+        page.goto("http://localhost:3333/tests/test_pages/nested_elements_micropython.html")
+        
+        page.wait_for_selector("[data-testid='parent']", timeout=10000)
+        
+        parent_element = page.locator("[data-testid='parent']")
+        expect(parent_element).to_be_visible()
+        
+        # Check child elements
+        child1 = page.locator("[data-testid='child1']")
+        child2 = page.locator("[data-testid='child2']")
+        grandchild = page.locator("[data-testid='grandchild']")
+        
+        expect(child1).to_contain_text("First child")
+        expect(child2).to_be_visible()
+        expect(grandchild).to_contain_text("Nested span")
+    
+    @pytest.mark.xfail(reason="Event handlers unstable in MicroPython tech preview")
+    def test_micropython_counter_increments(self, page: Page):
+        """Test that counter component increments correctly in MicroPython"""
+        page.goto("http://localhost:3333/tests/test_pages/counter_micropython.html")
+        
+        page.wait_for_selector("[data-testid='counter']", timeout=10000)
+        
+        # Check initial state
+        count_display = page.locator("[data-testid='count']")
+        expect(count_display).to_contain_text("Count: 0")
+        
+        # Click increment button
+        increment_btn = page.locator("[data-testid='increment']")
+        increment_btn.click()
+        
+        # Check count updated
+        expect(count_display).to_contain_text("Count: 1")
+        
+        # Click multiple times
+        increment_btn.click()
+        increment_btn.click()
+        expect(count_display).to_contain_text("Count: 3")
+
+
+class TestCrossRuntimeCompatibility:
+    """Test cross-runtime features and compatibility"""
+    
+    def test_pyodide_props_render_correctly(self, page: Page):
+        """Test that component props render correctly"""
+        page.goto("http://localhost:3333/tests/test_pages/props_test.html")
+        
+        page.wait_for_selector("[data-testid='user-profile']", timeout=10000)
+        
+        profile = page.locator("[data-testid='user-profile']")
+        expect(profile).to_be_visible()
+        
+        # Check user data is rendered
+        expect(profile.locator("h2")).to_contain_text("Test User")
+        expect(profile.locator("p")).to_contain_text("Test bio")
+        expect(profile.locator("img")).to_have_attribute("src", "avatar.jpg")
+
+    def test_pyodide_todo_app_functionality(self, page: Page):
         """Test todo app add, toggle, and display functionality"""
         page.goto("http://localhost:3333/tests/test_pages/todo_app.html")
         
@@ -134,7 +190,7 @@ class TestInteractivity:
 class TestComponentLifecycle:
     """Test component lifecycle and context methods"""
     
-    def test_timer_component_updates(self, page: Page):
+    def test_pyodide_timer_component_updates(self, page: Page):
         """Test that timer component updates over time"""
         page.goto("http://localhost:3333/tests/test_pages/timer.html")
         
@@ -153,7 +209,7 @@ class TestComponentLifecycle:
         page.wait_for_timeout(1000)  # Wait 1 more second
         expect(timer_display).to_contain_text("Time: 2.")
     
-    def test_cleanup_and_remount(self, page: Page):
+    def test_pyodide_cleanup_and_remount(self, page: Page):
         """Test component cleanup and remounting"""
         page.goto("http://localhost:3333/tests/test_pages/lifecycle.html")
         
@@ -183,7 +239,7 @@ class TestComponentLifecycle:
 class TestErrorHandling:
     """Test error handling and edge cases"""
     
-    def test_component_with_error_handles_gracefully(self, page: Page):
+    def test_pyodide_component_with_error_handles_gracefully(self, page: Page):
         """Test that components with errors don't crash the page"""
         page.goto("http://localhost:3333/tests/test_pages/error_handling.html")
         
@@ -199,7 +255,7 @@ class TestErrorHandling:
         expect(working_component).to_be_visible()
         expect(working_component).to_contain_text("This component works fine")
     
-    def test_invalid_props_handled(self, page: Page):
+    def test_pyodide_invalid_props_handled(self, page: Page):
         """Test that invalid props are handled gracefully"""
         page.goto("http://localhost:3333/tests/test_pages/invalid_props.html")
         
@@ -214,7 +270,7 @@ class TestErrorHandling:
 class TestFFIIntegration:
     """Test FFI (Foreign Function Interface) integration"""
     
-    def test_python_to_js_event_handlers(self, page: Page):
+    def test_pyodide_python_to_js_event_handlers(self, page: Page):
         """Test that Python event handlers work correctly"""
         page.goto("http://localhost:3333/tests/test_pages/event_handlers.html")
         
@@ -233,7 +289,7 @@ class TestFFIIntegration:
         click_button.click()
         expect(result_display).to_contain_text("Clicks: 3")
     
-    def test_python_to_js_data_conversion(self, page: Page):
+    def test_pyodide_python_to_js_data_conversion(self, page: Page):
         """Test that Python data structures convert to JS correctly"""
         page.goto("http://localhost:3333/tests/test_pages/data_conversion.html")
         
@@ -245,7 +301,7 @@ class TestFFIIntegration:
         expect(data_display).to_contain_text("Age: 25")
         expect(data_display).to_contain_text("Items: 3")
     
-    def test_complex_props_conversion(self, page: Page):
+    def test_pyodide_complex_props_conversion(self, page: Page):
         """Test complex nested props conversion"""
         page.goto("http://localhost:3333/tests/test_pages/complex_props.html")
         
