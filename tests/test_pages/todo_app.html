@@ -44,16 +44,16 @@
                     h.input(
                         type="text", 
                         value=new_todo,
-                        onInput=update_input,
+                        oninput=update_input,
                         data_testid="todo-input"
                     ),
-                    h.button(onClick=add_todo, data_testid="add-todo")["Add"],
+                    h.button(onclick=add_todo, data_testid="add-todo")["Add"],
                     h.ul(data_testid="todo-list")[
                         [h.li(key=i)[
                             h.input(
                                 type="checkbox", 
                                 checked=todo["done"],
-                                onChange=lambda e, i=i: toggle_todo(i)
+                                onchange=lambda e, i=i: toggle_todo(i)
                             ),
                             h.span[todo["text"]]
                         ] for i, todo in enumerate(todos)]

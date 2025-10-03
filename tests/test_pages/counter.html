@@ -33,8 +33,8 @@
             for _ in ctx:
                 yield h.div(data_testid="counter")[
                     h.h2(data_testid="count")[f"Count: {count}"],
-                    h.button(onClick=increment, data_testid="increment")["+"],
-                    h.button(onClick=decrement, data_testid="decrement")["-"]
+                    h.button(onclick=increment, data_testid="increment")["+"],
+                    h.button(onclick=decrement, data_testid="decrement")["-"]
                 ]
         
         renderer.render(h(Counter), document.getElementById("app"))

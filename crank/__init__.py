@@ -184,14 +184,14 @@ Pythonic HyperScript - Supported Patterns
 
 2. Elements with props:
     h.input(type="text", value=text)
-    h.div(className="my-class")["Content"]
+    h.div(class_name="my-class")["Content"]
 
 3. Props with snake_case → kebab-case conversion:
     h.div(data_test_id="button", aria_hidden="true")["Content"]
     # Becomes: data-test-id="button" aria-hidden="true"
 
 4. Props spreading:
-    h.button(className="btn", **userProps)["Click me"]
+    h.button(class_name="btn", **userProps)["Click me"]
     # Multiple dict merge
     h.div(id="main", **{**defaults, **overrides})["Content"]
 
@@ -214,7 +214,7 @@ Pythonic HyperScript - Supported Patterns
 
 8. Reserved keywords with spreading:
     h.div(**{"class": "container", **userProps})["Content"]
-    # Or use className instead of class
+    # Or use class_name (converts to className for React compatibility)
     """
 
     def __getattr__(self, name: str):

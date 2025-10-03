@@ -42,7 +42,7 @@
             
             for _ in ctx:
                 yield h.div(data_testid="event-test")[
-                    h.button(onClick=handle_click, data_testid="click-button")["Click me"],
+                    h.button(onclick=handle_click, data_testid="click-button")["Click me"],
                     h.div(data_testid="click-result")[f"Clicks: {clicks}"]
                 ]
         
