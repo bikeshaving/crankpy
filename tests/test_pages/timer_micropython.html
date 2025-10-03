@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Counter MicroPython Test</title>
+    <title>Timer MicroPython Test</title>
     <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
     <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
 </head>
@@ -29,31 +29,27 @@
     <py-script>
         from crank import h, component
         from crank.dom import renderer
-        from js import document
+        from js import document, setTimeout
+        import time
         
-        
-        @component
-        def Counter(ctx):
-            count = 0
+        @component  
+        def Timer(ctx):
+            start_time = time.time()
             
-            @ctx.refresh
-            def increment(event=None):
-                nonlocal count
-                count += 1
+            def update():
+                ctx.refresh()
+                from pyscript.ffi import create_proxy
+                setTimeout(create_proxy(update), 1000)  # Update every second
             
-            @ctx.refresh  
-            def decrement(event=None):
-                nonlocal count
-                count -= 1
+            # Start the timer
+            from pyscript.ffi import create_proxy
+            setTimeout(create_proxy(update), 1000)
             
             for _ in ctx:
-                yield h.div(data_testid="counter")[
-                    h.h2(data_testid="count")[f"Count: {count}"],
-                    h.button(onClick=increment, data_testid="increment")["+"],
-                    h.button(onClick=decrement, data_testid="decrement")["-"]
-                ]
+                elapsed = time.time() - start_time
+                yield h.div(data_testid="timer")[f"Time: {elapsed:.1f}s"]
         
-        renderer.render(h(Counter), document.getElementById("app"))
+        renderer.render(h(Timer), document.getElementById("app"))
     </py-script>
 </body>
 </html>

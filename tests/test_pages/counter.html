@@ -21,12 +21,12 @@
             count = 0
             
             @ctx.refresh
-            def increment():
+            def increment(event=None):
                 nonlocal count
                 count += 1
             
             @ctx.refresh  
-            def decrement():
+            def decrement(event=None):
                 nonlocal count
                 count -= 1
             

@@ -13,17 +13,16 @@
     <py-script>
         from crank import h, component
         from crank.dom import renderer
-        from js import document
-        
+        from js import document, setTimeout
+        import time
         
         @component  
         def Timer(ctx):
             start_time = time.time()
             
-            @ctx.schedule
             def update():
                 ctx.refresh()
-                ctx.setTimeout(update, 1000)  # Update every second
+                setTimeout(update, 1000)  # Update every second
             
             # Start the timer
             update()

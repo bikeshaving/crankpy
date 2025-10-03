@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Counter MicroPython Test</title>
+    <title>Event Handlers MicroPython Test</title>
     <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
     <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
 </head>
@@ -31,29 +31,22 @@
         from crank.dom import renderer
         from js import document
         
-        
         @component
-        def Counter(ctx):
-            count = 0
+        def EventTest(ctx):
+            clicks = 0
             
             @ctx.refresh
-            def increment(event=None):
-                nonlocal count
-                count += 1
-            
-            @ctx.refresh  
-            def decrement(event=None):
-                nonlocal count
-                count -= 1
+            def handle_click(event=None):
+                nonlocal clicks
+                clicks += 1
             
             for _ in ctx:
-                yield h.div(data_testid="counter")[
-                    h.h2(data_testid="count")[f"Count: {count}"],
-                    h.button(onClick=increment, data_testid="increment")["+"],
-                    h.button(onClick=decrement, data_testid="decrement")["-"]
+                yield h.div(data_testid="event-test")[
+                    h.button(onClick=handle_click, data_testid="click-button")["Click me"],
+                    h.div(data_testid="click-result")[f"Clicks: {clicks}"]
                 ]
         
-        renderer.render(h(Counter), document.getElementById("app"))
+        renderer.render(h(EventTest), document.getElementById("app"))
     </py-script>
 </body>
 </html>

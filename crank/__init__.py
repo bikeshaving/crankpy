@@ -97,7 +97,19 @@ class Context:
 
         # Decorator usage: @ctx.refresh
         def wrapper(*args, **kwargs):
-            result = func(*args, **kwargs)
+            import inspect
+            try:
+                # Try calling with all provided arguments first
+                result = func(*args, **kwargs)
+            except TypeError as e:
+                # If it fails due to too many arguments (common with event handlers),
+                # try calling without arguments
+                if "takes 0 positional arguments but" in str(e) and args:
+                    result = func()
+                else:
+                    # Re-raise if it's a different TypeError
+                    raise
+            
             if self._refresh:
                 self._refresh()
             return result
