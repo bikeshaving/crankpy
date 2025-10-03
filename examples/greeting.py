@@ -8,10 +8,13 @@ from js import document
 
 @component
 def Greeting(ctx):
-    # Simple generator component
+    name = "World"
     for _ in ctx:
-        name = "World"  # Keep it simple for now
-        yield h.div[f"Hello {name}!"]
+        yield [
+            h.div[f"Hellooooo {name}!"],
+            h.span(data_data="number"),
+            h.span(data_data="number")["hello"],
+        ]
 
 # Render the component
 renderer.render(h(Greeting), document.body)

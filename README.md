@@ -1,21 +1,20 @@
-# ⚙️ Crank.py
+# ⚙️🐍 Crank.y
 
-**Python Frontend Framework with Async/Generators, Powered by Crank.js** - Modern component patterns for Python web development.
+Modern components for Python frontend development.
 
 [![PyScript Compatible](https://img.shields.io/badge/PyScript-Compatible-blue)](https://pyscript.net)
 [![Pyodide Compatible](https://img.shields.io/badge/Pyodide-Compatible-green)](https://pyodide.org)
 [![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Built on the [Crank.js](https://crank.js.org/) framework
+Built on the [Crank.js](https://crank.js.org/) framework.
 
-## ✨ Features
+## Features
 
 - **🐍 Pythonic Hyperscript** - Clean template `h.div["content"]` syntax inspired by JSX
-- **🔄 Generator Components** - Natural state management using Python generators  
+- **🔄 Generator Components** - Natural state management using Python generators
+- **⏰ Async Components** - Components can use `async def`/`await` and `await for`
 - **🎨 Lifecycle Decorators** - `@ctx.refresh`, `@ctx.after`, `@ctx.cleanup`
-- **🔗 Props Loop** - Dynamic `for props in ctx:` pattern
-- **⚡ Zero Build Step** - Pure Python, runs anywhere PyScript runs
-- **🌐 Browser Native** - Works in PyScript, Pyodide, and Node.js environments
+- **🌐 Browser Native** - No build step
 
 ## 📦 Installation
 
@@ -82,17 +81,17 @@ renderer.render(h(Greeting), document.body)
 @component
 def Counter(ctx):
     count = 0
-    
+
     @ctx.refresh
     def increment():
         nonlocal count
         count += 1
-    
-    @ctx.refresh  
+
+    @ctx.refresh
     def decrement():
         nonlocal count
         count -= 1
-    
+
     for _ in ctx:
         yield h.div[
             h.h2[f"Count: {count}"],
@@ -109,7 +108,7 @@ def UserProfile(ctx, props):
     for props in ctx:  # Props automatically update!
         user_id = props.user_id
         user = fetch_user(user_id)  # Fetches when props change
-        
+
         yield h.div[
             h.img(src=user.avatar),
             h.h2[user.name],
@@ -222,7 +221,7 @@ def Logo():
     return h.div["🔧 Crank.py"]
 
 # 2. Context-only (internal state)
-@component  
+@component
 def Timer(ctx):
     start_time = time.time()
     for _ in ctx:
@@ -249,22 +248,22 @@ def MyComponent(ctx):
     def handle_click():
         # Automatically triggers re-render
         pass
-    
-    @ctx.schedule  
+
+    @ctx.schedule
     def before_render():
         # Runs before each render
         pass
-    
+
     @ctx.after
     def after_render(node):
         # Runs after DOM update
         node.style.color = "blue"
-    
+
     @ctx.cleanup
     def on_unmount():
         # Cleanup when component unmounts
         clear_interval(timer)
-    
+
     for _ in ctx:
         yield h.div(onClick=handle_click)["Click me"]
 ```
@@ -278,24 +277,24 @@ def MyComponent(ctx):
 def TodoApp(ctx):
     todos = []
     new_todo = ""
-    
+
     @ctx.refresh
     def add_todo():
         nonlocal todos, new_todo
         if new_todo.strip():
             todos.append({"text": new_todo, "done": False})
             new_todo = ""
-    
+
     @ctx.refresh
     def toggle_todo(index):
         nonlocal todos
         todos[index]["done"] = not todos[index]["done"]
-    
+
     for _ in ctx:
         yield h.div[
             h.h1["Todo List"],
             h.input(
-                type="text", 
+                type="text",
                 value=new_todo,
                 oninput=lambda e: setattr(sys.modules[__name__], 'new_todo', e.target.value)
             ),
@@ -303,7 +302,7 @@ def TodoApp(ctx):
             h.ul[
                 [h.li(key=i)[
                     h.input(
-                        type="checkbox", 
+                        type="checkbox",
                         checked=todo["done"],
                         onChange=lambda i=i: toggle_todo(i)
                     ),
@@ -319,15 +318,15 @@ def TodoApp(ctx):
 @component
 def Clock(ctx):
     import asyncio
-    
+
     async def update_time():
         while True:
             await asyncio.sleep(1)
             ctx.refresh()
-    
+
     # Start the update loop
     asyncio.create_task(update_time())
-    
+
     for _ in ctx:
         current_time = time.strftime("%H:%M:%S")
         yield h.div[
@@ -370,7 +369,7 @@ python -m http.server 8000
 Traditional Python web frameworks use templates and server-side rendering. Crank.py brings component-based architecture to Python:
 
 - **🧩 Reusable Components** - Build UIs from composable pieces
-- **🔄 Dynamic Updates** - Explicit re-rendering with ctx.refresh()  
+- **🔄 Dynamic Updates** - Explicit re-rendering with ctx.refresh()
 - **🎯 Generator-Powered** - Natural state management with Python generators
 - **🌐 Browser-Native** - Run Python directly in the browser via PyScript
 

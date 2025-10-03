@@ -6,18 +6,54 @@ from typing import Callable
 import inspect
 from js import Symbol, Object
 from pyscript.ffi import to_js, create_proxy
+from pyodide.ffi import JsProxy
 
-# Import Crank core from PyScript's js_modules
-from pyscript.js_modules import crank_core as _crank
+from pyscript.js_modules import crank_core as crank
+
+# Global variable to track if we've patched the as_object_map type yet
+_as_object_map_type_patched = False
+
+def _patch_as_object_map_type():
+    """Patch the dynamic type created by as_object_map() to support chainable elements"""
+    global _as_object_map_type_patched
+    if _as_object_map_type_patched:
+        return
+    
+    # Create a dummy element to get the as_object_map type
+    dummy_elem = createElement('div', None)
+    if hasattr(dummy_elem, 'as_object_map'):
+        mapped = dummy_elem.as_object_map()
+        mapped_type = type(mapped)
+        
+        # Create our chainable __getitem__
+        def chainable_getitem(self, children):
+            # Check if this is a chainable element with our custom properties
+            if hasattr(self, '_crank_tag') and hasattr(self, '_crank_props'):
+                # This is our chainable element - create element with children
+                if not isinstance(children, (list, tuple)):
+                    children = [children]
+                js_children = [to_js(child) if not isinstance(child, str) else child for child in children]
+                js_props = to_js(self._crank_props) if self._crank_props else None
+                return createElement(self._crank_tag, js_props, *js_children)
+            else:
+                # Regular as_object_map behavior - try property access
+                try:
+                    return getattr(self, children)
+                except AttributeError:
+                    raise KeyError(children)
+        
+        # Patch the type
+        mapped_type.__getitem__ = chainable_getitem
+        _as_object_map_type_patched = True
 
 # Re-export Crank classes directly
-Element = _crank.Element
-createElement = _crank.createElement
-Fragment = _crank.Fragment
-Portal = Symbol.for_("crank.Portal")
-Copy = Symbol.for_("crank.Copy")
-Text = Symbol.for_("crank.Text")
-Raw = Symbol.for_("crank.Raw")
+Element = crank.Element
+createElement = crank.createElement
+Fragment = crank.Fragment
+Portal = crank.Portal
+Copy = crank.Copy
+Raw = crank.Raw
+Text = crank.Text
 
 # Context wrapper to add Python-friendly API
 class Context:
@@ -25,11 +61,22 @@ class Context:
 
     def __init__(self, js_context):
         self._js_context = js_context
-        # Store original methods
-        self._refresh = js_context.refresh.bind(js_context) if hasattr(js_context, 'refresh') else None
-        self._schedule = js_context.schedule.bind(js_context) if hasattr(js_context, 'schedule') else None
-        self._after = js_context.after.bind(js_context) if hasattr(js_context, 'after') else None
-        self._cleanup = js_context.cleanup.bind(js_context) if hasattr(js_context, 'cleanup') else None
+        # Store original methods with safe access
+        self._refresh = getattr(js_context, 'refresh', None)
+        if self._refresh and hasattr(self._refresh, 'bind'):
+            self._refresh = self._refresh.bind(js_context)
+        
+        self._schedule = getattr(js_context, 'schedule', None)
+        if self._schedule and hasattr(self._schedule, 'bind'):
+            self._schedule = self._schedule.bind(js_context)
+            
+        self._after = getattr(js_context, 'after', None)
+        if self._after and hasattr(self._after, 'bind'):
+            self._after = self._after.bind(js_context)
+            
+        self._cleanup = getattr(js_context, 'cleanup', None)
+        if self._cleanup and hasattr(self._cleanup, 'bind'):
+            self._cleanup = self._cleanup.bind(js_context)
 
         # Copy over all properties from JS context
         for attr in dir(js_context):
@@ -126,84 +173,6 @@ def component(func: Callable) -> Callable:
 
 # MagicH element
 # Also known as Pythonic HyperScript
-class ElementBuilder:
-    def __init__(self, tag_or_component, props=None):
-        self.tag_or_component = tag_or_component
-        self.props = props
-
-    def __call__(self, *args, **props):
-        # Convert props with underscore to hyphen conversion
-        converted_props = {}
-        for key, value in props.items():
-            converted_props[key.replace('_', '-')] = value
-
-        # Process props to handle callables (lambdas, functions)
-        processed_props = self._process_props_for_proxies(converted_props) if converted_props else {}
-
-        if args:
-            # If called with children args, create element immediately
-            js_props = to_js(processed_props) if processed_props else None
-            return createElement(self.tag_or_component, js_props, *args)
-        else:
-            # If called with just props, return new ElementBuilder with props for chaining
-            return ElementBuilder(self.tag_or_component, processed_props)
-
-    def __getitem__(self, children):
-        if not isinstance(children, (list, tuple)):
-            children = [children]
-
-        # Convert children to JS-compatible format
-        js_children = [to_js(child) if not isinstance(child, str) else child for child in children]
-        
-        # Use stored props if available
-        js_props = to_js(self.props) if self.props else None
-        
-        # Create element with children and props
-        return createElement(self.tag_or_component, js_props, *js_children)
-
-    def _process_props_for_proxies(self, props):
-        """Process props to create proxies for callables"""
-        processed = {}
-        for key, value in props.items():
-            if callable(value):
-                # Check if it's already a proxy by looking for pyproxy-specific attributes
-                if hasattr(value, 'toString') or str(type(value)).startswith("<class 'pyodide.ffi.JsProxy'>"):
-                    # Already a proxy
-                    processed[key] = value
-                else:
-                    # Create a proxy for the callable
-                    proxy = create_proxy(value)
-                    # _proxy_cache.append(proxy)
-                    processed[key] = proxy
-            elif isinstance(value, dict):
-                # Recursively process nested dicts
-                processed[key] = self._process_props_for_proxies(value)
-            elif isinstance(value, (list, tuple)):
-                # Process lists/tuples for callables
-                processed_list = []
-                for item in value:
-                    if callable(item) and not (hasattr(item, 'toString') or str(type(item)).startswith("<class 'pyodide.ffi.JsProxy'>")):
-                        proxy = create_proxy(item)
-                        # _proxy_cache.append(proxy)
-                        processed_list.append(proxy)
-                    else:
-                        processed_list.append(item)
-                processed[key] = processed_list
-            else:
-                processed[key] = value
-        return processed
-
-
-class FragmentBuilder:
-    def __init__(self, js_props):
-        self.js_props = js_props
-
-    def __getitem__(self, children):
-        if not isinstance(children, (list, tuple)):
-            children = [children]
-
-        return createElement(Fragment, self.js_props, *children)
-
 
 class MagicH:
     """
@@ -216,14 +185,15 @@ Pythonic HyperScript - Supported Patterns
 2. Elements with props:
     h.input(type="text", value=text)
     h.div(className="my-class")["Content"]
-    
+
 3. Props with snake_case → kebab-case conversion:
     h.div(data_test_id="button", aria_hidden="true")["Content"]
     # Becomes: data-test-id="button" aria-hidden="true"
 
 4. Props spreading:
     h.button(className="btn", **userProps)["Click me"]
-    h.div(id="main", **{**defaults, **overrides})["Content"]  # Multiple dict merge
+    # Multiple dict merge
+    h.div(id="main", **{**defaults, **overrides})["Content"]
 
 5. Nested elements:
     h.ul[
@@ -246,6 +216,7 @@ Pythonic HyperScript - Supported Patterns
     h.div(**{"class": "container", **userProps})["Content"]
     # Or use className instead of class
     """
+
     def __getattr__(self, name: str):
         # Only support HTML elements, no dynamic component lookup
         return ElementBuilder(name)
@@ -332,8 +303,184 @@ Pythonic HyperScript - Supported Patterns
                 processed[key] = value
         return processed
 
+class ChainableElement:
+    """Element that perfectly mimics a JS element but supports __getitem__ for chaining"""
+    def __init__(self, element, tag_or_component, props):
+        # Store the JS element and creation info
+        object.__setattr__(self, '_element', element)
+        object.__setattr__(self, '_tag_or_component', tag_or_component)
+        object.__setattr__(self, '_props', props)
+        
+    def __getitem__(self, children):
+        # Recreate element with children
+        if not isinstance(children, (list, tuple)):
+            children = [children]
+        js_children = [to_js(child) if not isinstance(child, str) else child for child in children]
+        js_props = to_js(self._props) if self._props else None
+        return createElement(self._tag_or_component, js_props, *js_children)
+    
+    def __getattr__(self, name):
+        # Delegate everything to the wrapped element
+        return getattr(self._element, name)
+    
+    def __setattr__(self, name, value):
+        # Delegate attribute setting to wrapped element
+        return setattr(self._element, name, value)
+    
+    def __str__(self):
+        return str(self._element)
+    
+    def __repr__(self):
+        return repr(self._element)
+    
+    def __bool__(self):
+        return bool(self._element)
+    
+    def __eq__(self, other):
+        if hasattr(other, '_element'):
+            return self._element == other._element
+        return self._element == other
+
+class ElementBuilder:
+    def __init__(self, tag_or_component, props=None):
+        self.tag_or_component = tag_or_component
+        self.props = props
+        self._element = None  # Lazy-created element
+    
+    def _ensure_element(self):
+        """Create the element if it doesn't exist yet"""
+        if self._element is None:
+            js_props = to_js(self.props) if self.props else None
+            self._element = createElement(self.tag_or_component, js_props)
+        return self._element
+    
+    def __iter__(self):
+        """Make ElementBuilder iterable like an element for Crank"""
+        return iter(self._ensure_element())
+    
+    def __str__(self):
+        return str(self._ensure_element())
+    
+    def __repr__(self):
+        return repr(self._ensure_element())
+    
+    def __getattr__(self, name):
+        """Delegate attribute access to the element"""
+        return getattr(self._ensure_element(), name)
+
+    def __getitem__(self, children):
+        if not isinstance(children, (list, tuple)):
+            children = [children]
+
+        # Convert children to JS-compatible format
+        js_children = [to_js(child) if not isinstance(child, str) else child for child in children]
+
+        # Use stored props if available
+        js_props = to_js(self.props) if self.props else None
+
+        # Create element with children and props
+        return createElement(self.tag_or_component, js_props, *js_children)
+
+    def __call__(self, *args, **props):
+        # Convert props with underscore to hyphen conversion
+        converted_props = {}
+        for key, value in props.items():
+            converted_props[key.replace('_', '-')] = value
+
+        # Process props to handle callables (lambdas, functions)
+        processed_props = self._process_props_for_proxies(converted_props) if converted_props else {}
+
+        if args:
+            # If called with children args, create element immediately
+            js_props = to_js(processed_props) if processed_props else None
+            return createElement(self.tag_or_component, js_props, *args)
+        elif props:
+            # If called with just props, create chainable element
+            js_props = to_js(processed_props) if processed_props else None
+            element = createElement(self.tag_or_component, js_props)
+            return self._make_chainable_element(element, processed_props)
+        else:
+            # If called with no args and no props, create empty element immediately
+            return createElement(self.tag_or_component, None)
+    
+    def _make_chainable_element(self, element, props):
+        """Convert a JsProxy element into a chainable version using as_object_map"""
+        try:
+            # Ensure the as_object_map type is patched
+            _patch_as_object_map_type()
+            
+            # Use as_object_map to make the element subscriptable
+            if hasattr(element, 'as_object_map'):
+                chainable = element.as_object_map()
+                
+                # Mark this as a chainable element for our patched __getitem__
+                chainable._crank_tag = self.tag_or_component
+                chainable._crank_props = props
+                
+                return chainable
+            else:
+                # Fallback to original element if as_object_map not available
+                return element
+        except Exception:
+            # Fallback to original element if anything goes wrong
+            return element
+
+    def _process_props_for_proxies(self, props):
+        """Process props to create proxies for callables"""
+        processed = {}
+        for key, value in props.items():
+            if callable(value):
+                # Check if it's already a proxy by looking for pyproxy-specific attributes
+                if hasattr(value, 'toString') or str(type(value)).startswith("<class 'pyodide.ffi.JsProxy'>"):
+                    # Already a proxy
+                    processed[key] = value
+                else:
+                    # Create a proxy for the callable
+                    proxy = create_proxy(value)
+                    # _proxy_cache.append(proxy)
+                    processed[key] = proxy
+            elif isinstance(value, dict):
+                # Recursively process nested dicts
+                processed[key] = self._process_props_for_proxies(value)
+            elif isinstance(value, (list, tuple)):
+                # Process lists/tuples for callables
+                processed_list = []
+                for item in value:
+                    if callable(item) and not (hasattr(item, 'toString') or str(type(item)).startswith("<class 'pyodide.ffi.JsProxy'>")):
+                        proxy = create_proxy(item)
+                        # _proxy_cache.append(proxy)
+                        processed_list.append(proxy)
+                    else:
+                        processed_list.append(item)
+                processed[key] = processed_list
+            else:
+                processed[key] = value
+        return processed
+
+class FragmentBuilder:
+    def __init__(self, js_props):
+        self.js_props = js_props
+
+    def __getitem__(self, children):
+        if not isinstance(children, (list, tuple)):
+            children = [children]
+
+        return createElement(Fragment, self.js_props, *children)
+
 # Hyperscript function with magic dot syntax
 h = MagicH()
 
 # Exports
-__all__ = ['Element', 'Context', 'createElement', 'component', 'Fragment', 'Portal', 'Copy', 'Text', 'Raw', 'h']
+__all__ = [
+        'Element',
+        'Context',
+        'createElement',
+        'component',
+        'Fragment',
+        'Portal',
+        'Copy',
+        'Text',
+        'Raw',
+        'h',
+        'crank',
+]

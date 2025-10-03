@@ -18,12 +18,12 @@ test-main:  ## Run main test suite (alias for test-unit)
 	uv run python -m pytest tests/test_crank.py -v
 
 serve-test-server:  ## Start test server for integration tests (http://localhost:3333)
-	python -m http.server 3333
+	uv run python -m http.server 3333
 
 serve-pyscript-cli-test:  ## Start server for PyScript CLI compatibility test (http://localhost:3334)
 	@echo "Starting PyScript CLI compatibility test at http://localhost:3334"
 	@echo "Testing crankpy integration with PyScript CLI configuration"
-	cd test_pyscript_cli && python -m http.server 3334
+	cd test_pyscript_cli && uv run python -m http.server 3334
 
 build:  ## Build package for distribution
 	uv run python -m build
@@ -31,7 +31,7 @@ build:  ## Build package for distribution
 serve-examples:  ## Start local server for examples (http://localhost:3333/examples/)
 	@echo "Starting server at http://localhost:3333"
 	@echo "Examples available at http://localhost:3333/examples/"
-	python -m http.server 3333
+	uv run python -m http.server 3333
 
 clean:  ## Clean build artifacts
 	rm -rf dist/ build/ *.egg-info/ .pytest_cache/
