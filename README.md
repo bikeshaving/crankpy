@@ -1,9 +1,10 @@
-# ⚙️🐍 Crank.y
+# ⚙️🐍 Crank.py
 
 Modern components for Python frontend development.
 
 [![PyScript Compatible](https://img.shields.io/badge/PyScript-Compatible-blue)](https://pyscript.net)
 [![Pyodide Compatible](https://img.shields.io/badge/Pyodide-Compatible-green)](https://pyodide.org)
+[![MicroPython Compatible](https://img.shields.io/badge/MicroPython-Compatible-orange)](https://micropython.org)
 [![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Built on the [Crank.js](https://crank.js.org/) framework.
@@ -22,70 +23,25 @@ Built on the [Crank.js](https://crank.js.org/) framework.
 ### PyScript (Pyodide)
 
 ```html
-<py-config>
-{
-    "packages": ["crankpy"],
-    "js_modules": {
-        "main": {
-            "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/crank.js": "crank_core",
-            "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/dom.js": "crank_dom"
-        }
-    }
-}
-</py-config>
-```
+<py-config type="toml">
+packages = ["crankpy"]
 
-Or use direct file loading:
-```html
-<py-config>
-{
-    "files": {
-        "https://raw.githubusercontent.com/bikeshaving/crankpy/main/crank/__init__.py": "crank/__init__.py",
-        "https://raw.githubusercontent.com/bikeshaving/crankpy/main/crank/dom.py": "crank/dom.py"
-    },
-    "js_modules": {
-        "main": {
-            "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/crank.js": "crank_core",
-            "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/dom.js": "crank_dom"
-        }
-    }
-}
+[js_modules.main]
+"https://cdn.jsdelivr.net/npm/@b9g/crank@latest/crank.js" = "crank_core"
+"https://cdn.jsdelivr.net/npm/@b9g/crank@latest/dom.js" = "crank_dom"
 </py-config>
 ```
 
 ### PyScript (MicroPython)
 
 ```html
-<py-config type="json">
-{
-    "type": "micropython",
-    "packages": ["crankpy"],
-    "js_modules": {
-        "main": {
-            "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/crank.js": "crank_core",
-            "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/dom.js": "crank_dom"
-        }
-    }
-}
-</py-config>
-```
+<py-config type="toml">
+type = "micropython"
+packages = ["crankpy"]
 
-Or use direct file loading:
-```html
-<py-config type="json">
-{
-    "type": "micropython",
-    "files": {
-        "https://raw.githubusercontent.com/bikeshaving/crankpy/main/crank/__init__.py": "crank/__init__.py",
-        "https://raw.githubusercontent.com/bikeshaving/crankpy/main/crank/dom.py": "crank/dom.py"
-    },
-    "js_modules": {
-        "main": {
-            "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/crank.js": "crank_core",
-            "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/dom.js": "crank_dom"
-        }
-    }
-}
+[js_modules.main]
+"https://cdn.jsdelivr.net/npm/@b9g/crank@latest/crank.js" = "crank_core"
+"https://cdn.jsdelivr.net/npm/@b9g/crank@latest/dom.js" = "crank_dom"
 </py-config>
 ```
 

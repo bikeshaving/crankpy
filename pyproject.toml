@@ -14,7 +14,7 @@ authors = [
 maintainers = [
     {name = "Brian Kim", email = "briankimpossible@gmail.com"},
 ]
-keywords = ["crank", "components", "pyscript", "pyodide", "generators", "ui", "hyperscript", "jsx", "browser"]
+keywords = ["crank", "components", "pyscript", "pyodide", "micropython", "generators", "ui", "hyperscript", "jsx", "browser"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
