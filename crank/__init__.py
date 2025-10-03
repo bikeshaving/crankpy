@@ -78,9 +78,9 @@ class Context:
         if self._cleanup and hasattr(self._cleanup, 'bind'):
             self._cleanup = self._cleanup.bind(js_context)
 
-        # Copy over all properties from JS context
+        # Copy over all properties from JS context (except deprecated ones)
         for attr in dir(js_context):
-            if not attr.startswith('_') and attr not in ['refresh', 'schedule', 'after', 'cleanup']:
+            if not attr.startswith('_') and attr not in ['refresh', 'schedule', 'after', 'cleanup', 'value']:
                 try:
                     value = getattr(js_context, attr)
                     setattr(self, attr, value)
@@ -129,9 +129,26 @@ class Context:
         return func
 
     def __iter__(self):
-        """Delegate to JS context's iterator protocol"""
-        # Let PyScript convert the JS iterator to Python iterator
-        return iter(self._js_context)
+        """Custom iterator that avoids deprecated ctx.value access"""
+        # Instead of calling iter(self._js_context) which triggers ctx.value,
+        # we implement our own iterator that works with Crank's for-of pattern
+        class ContextIterator:
+            def __init__(self, js_context):
+                self.js_context = js_context
+                self.done = False
+                
+            def __iter__(self):
+                return self
+                
+            def __next__(self):
+                # Crank.js contexts yield props indefinitely in for-of loops
+                # We don't call next() on the JS iterator to avoid ctx.value access
+                if hasattr(self.js_context, 'props'):
+                    return self.js_context.props
+                else:
+                    return {}
+        
+        return ContextIterator(self._js_context)
 
     def __aiter__(self):
         """Delegate to JS context's async iterator protocol"""
@@ -140,6 +157,8 @@ class Context:
 
     def __getattr__(self, name):
         """Fallback to JS context for any missing attributes"""
+        if name == 'value':
+            print(f"DEBUG: ctx.value accessed via __getattr__!")
         return getattr(self._js_context, name)
 
 # Component decorator
