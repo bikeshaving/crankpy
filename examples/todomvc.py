@@ -140,8 +140,8 @@ def TodoApp(ctx):
         for todo in todos:
             todo["completed"] = all_completed
 
-    @ctx.refresh
     def set_filter(new_filter):
+        @ctx.refresh
         def handler(ev):
             nonlocal filter_type
             filter_type = new_filter
@@ -205,21 +205,21 @@ def TodoApp(ctx):
                     h.li[
                         h.a(
                             href="#/",
-                            onclick=lambda: set_filter("all"),
+                            onclick=set_filter("all"),
                             className="selected" if filter_type == "all" else None
                         )["All"]
                     ],
                     h.li[
                         h.a(
                             href="#/active",
-                            onclick=lambda: set_filter("active"),
+                            onclick=set_filter("active"),
                             className="selected" if filter_type == "active" else None
                         )["Active"]
                     ],
                     h.li[
                         h.a(
                             href="#/completed",
-                            onclick=lambda: set_filter("completed"),
+                            onclick=set_filter("completed"),
                             className="selected" if filter_type == "completed" else None
                         )["Completed"]
                     ]
