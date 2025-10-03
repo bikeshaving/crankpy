@@ -1,8 +1,8 @@
-# 🔧 Crank.py Examples
+# Crank.py Examples
 
 This directory contains examples demonstrating all the features of Crank.py. Each example showcases different patterns and capabilities of the framework.
 
-## 🏃 Running Examples
+## Running Examples
 
 1. **Start a local server:**
    ```bash
@@ -13,7 +13,7 @@ This directory contains examples demonstrating all the features of Crank.py. Eac
    - Visit `http://localhost:8000/examples/`
    - Click on any `.html` file to run the example
 
-## 📝 Available Examples
+## Available Examples
 
 ### [`greeting.py`](greeting.py) - Hello World
 **Basic component rendering**
@@ -47,14 +47,14 @@ This directory contains examples demonstrating all the features of Crank.py. Eac
 - Hyperscript syntax showcase
 - Demonstrates all major framework features
 
-## 🎯 Key Patterns Demonstrated
+## Key Patterns Demonstrated
 
 ### Component Signatures
 ```python
 # Static component (0 params)
 @component
 def Logo():
-    return h.div["🔧 Crank.py"]
+    return h.div["Crank.py"]
 
 # Context only (1 param)
 @component
@@ -109,19 +109,19 @@ h(MyComponent, prop="value")
 ```python
 @component
 def DynamicComponent(ctx, props):
-    for props in ctx:  # 🔥 New props each iteration
+    for props in ctx:  # New props each iteration
         # Component updates when parent changes props
         yield h.div[f"Current value: {props.value}"]
 ```
 
-## 🏗️ HTML Structure
+## HTML Structure
 
 Each example includes:
 - **`.py` file** - The Python component code
 - **`.html` file** - PyScript setup and styling
 - **Styling** - CSS for visual presentation
 
-## 🧪 Testing Examples
+## Testing Examples
 
 All examples are covered by the test suite in [`../tests/`](../tests/):
 - Browser tests using Playwright
@@ -129,7 +129,7 @@ All examples are covered by the test suite in [`../tests/`](../tests/):
 - Hyperscript syntax verification
 - Lifecycle decorator testing
 
-## 📚 Learning Path
+## Learning Path
 
 **Recommended order for learning:**
 
@@ -139,7 +139,7 @@ All examples are covered by the test suite in [`../tests/`](../tests/):
 4. **`animated_letters.py`** - Explore advanced lifecycle
 5. **`showcase.py`** - See everything together
 
-## 🔗 Related Resources
+## Related Resources
 
 - **[Main README](../README.md)** - Installation and setup
 - **[Crank.js Examples](https://crank.js.org/guides/examples)** - Original JavaScript versions
@@ -147,4 +147,4 @@ All examples are covered by the test suite in [`../tests/`](../tests/):
 
 ---
 
-**🔧 Built with Crank.py - Python Frontend Framework with Async/Generators, Powered by Crank.js**
+**Built with Crank.py - Python Frontend Framework with Async/Generators, Powered by Crank.js**

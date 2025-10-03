@@ -10,15 +10,16 @@ Built on the [Crank.js](https://crank.js.org/) framework.
 
 ## Features
 
-- **🐍 Pythonic Hyperscript** - Clean template `h.div["content"]` syntax inspired by JSX
-- **🔄 Generator Components** - Natural state management using Python generators
-- **⏰ Async Components** - Components can use `async def`/`await` and `await for`
-- **🎨 Lifecycle Decorators** - `@ctx.refresh`, `@ctx.after`, `@ctx.cleanup`
-- **🌐 Browser Native** - No build step
+- **Pythonic Hyperscript** - Clean template `h.div["content"]` syntax inspired by JSX
+- **Generator Components** - Natural state management using Python generators
+- **Async Components** - Components can use `async def`/`await` and `await for`
+- **Lifecycle Decorators** - `@ctx.refresh`, `@ctx.after`, `@ctx.cleanup`
+- **Dual Runtime** - Full compatibility with both Pyodide and MicroPython runtimes
+- **Browser Native** - No build step
 
-## 📦 Installation
+## Installation
 
-### PyScript (Browser)
+### PyScript (Pyodide)
 
 ```html
 <py-config>
@@ -52,13 +53,49 @@ Or use direct file loading:
 </py-config>
 ```
 
+### PyScript (MicroPython)
+
+```html
+<py-config type="json">
+{
+    "type": "micropython",
+    "packages": ["crankpy"],
+    "js_modules": {
+        "main": {
+            "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/crank.js": "crank_core",
+            "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/dom.js": "crank_dom"
+        }
+    }
+}
+</py-config>
+```
+
+Or use direct file loading:
+```html
+<py-config type="json">
+{
+    "type": "micropython",
+    "files": {
+        "https://raw.githubusercontent.com/bikeshaving/crankpy/main/crank/__init__.py": "crank/__init__.py",
+        "https://raw.githubusercontent.com/bikeshaving/crankpy/main/crank/dom.py": "crank/dom.py"
+    },
+    "js_modules": {
+        "main": {
+            "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/crank.js": "crank_core",
+            "https://cdn.jsdelivr.net/npm/@b9g/crank@latest/dom.js": "crank_dom"
+        }
+    }
+}
+</py-config>
+```
+
 ### pip
 
 ```bash
 pip install crankpy
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Hello World
 
@@ -70,7 +107,7 @@ from js import document
 @component
 def Greeting(ctx):
     for _ in ctx:
-        yield h.div["Hello, Crank.py! ⚙️"]
+        yield h.div["Hello, Crank.py!"]
 
 renderer.render(h(Greeting), document.body)
 ```
@@ -119,7 +156,7 @@ def UserProfile(ctx, props):
 h(UserProfile, user_id=123)
 ```
 
-## 📖 Hyperscript Syntax Guide
+## Hyperscript Syntax Guide
 
 Crank.py uses a clean, Pythonic hyperscript syntax:
 
@@ -208,7 +245,7 @@ h.div[
 ]
 ```
 
-## 🔄 Component Lifecycle
+## Component Lifecycle
 
 ### Component Signatures
 
@@ -268,7 +305,7 @@ def MyComponent(ctx):
         yield h.div(onClick=handle_click)["Click me"]
 ```
 
-## 🎯 Examples
+## Examples
 
 ### Todo App
 
@@ -335,7 +372,7 @@ def Clock(ctx):
         ]
 ```
 
-## 🧪 Testing
+## Testing
 
 Run the test suite:
 
@@ -347,7 +384,7 @@ pip install pytest playwright
 pytest tests/
 ```
 
-## 🛠️ Development
+## Development
 
 ```bash
 # Clone the repository
@@ -362,34 +399,34 @@ python -m http.server 8000
 # Visit http://localhost:8000/examples/
 ```
 
-## 🌟 Why Crank.py?
+## Why Crank.py?
 
 ### Python Web Development, Modernized
 
 Traditional Python web frameworks use templates and server-side rendering. Crank.py brings component-based architecture to Python:
 
-- **🧩 Reusable Components** - Build UIs from composable pieces
-- **🔄 Dynamic Updates** - Explicit re-rendering with ctx.refresh()
-- **🎯 Generator-Powered** - Natural state management with Python generators
-- **🌐 Browser-Native** - Run Python directly in the browser via PyScript
+- **Reusable Components** - Build UIs from composable pieces
+- **Dynamic Updates** - Explicit re-rendering with ctx.refresh()
+- **Generator-Powered** - Natural state management with Python generators
+- **Browser-Native** - Run Python directly in the browser via PyScript
 
 ### Perfect for:
 
-- **📱 PyScript Applications** - Rich client-side Python apps
-- **🎓 Educational Projects** - Teaching web development with Python
-- **🏗️ Prototyping** - Rapid UI development without JavaScript
-- **🔬 Data Visualization** - Interactive Python data apps in the browser
+- **PyScript Applications** - Rich client-side Python apps
+- **Educational Projects** - Teaching web development with Python
+- **Prototyping** - Rapid UI development without JavaScript
+- **Data Visualization** - Interactive Python data apps in the browser
 
-## 📚 Learn More
+## Learn More
 
 - **[Crank.js Documentation](https://crank.js.org/)** - The underlying framework
 - **[PyScript Guide](https://pyscript.net/)** - Running Python in browsers
 - **[Examples](examples/)** - See Crank.py in action
 
-## 🤝 Contributing
+## Contributing
 
 Contributions welcome! Please read our [Contributing Guide](CONTRIBUTING.md) first.
 
-## 📄 License
+## License
 
 MIT © 2024
