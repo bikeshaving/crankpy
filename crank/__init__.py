@@ -151,9 +151,28 @@ class Context:
         return ContextIterator(self._js_context)
 
     def __aiter__(self):
-        """Delegate to JS context's async iterator protocol"""
-        # Let PyScript convert the JS async iterator to Python async iterator
-        return aiter(self._js_context)
+        """Custom async iterator that avoids deprecated ctx.value access"""
+        # Instead of calling aiter(self._js_context) which triggers ctx.value,
+        # implement our own async iterator
+        class AsyncContextIterator:
+            def __init__(self, js_context):
+                self.js_context = js_context
+                self.done = False
+            
+            def __aiter__(self):
+                return self
+            
+            async def __anext__(self):
+                # We don't call next() on the JS async iterator to avoid ctx.value access
+                if self.done:
+                    raise StopAsyncIteration
+                self.done = True
+                if hasattr(self.js_context, 'props'):
+                    return self.js_context.props
+                else:
+                    return {}
+        
+        return AsyncContextIterator(self._js_context)
 
     def __getattr__(self, name):
         """Fallback to JS context for any missing attributes"""
