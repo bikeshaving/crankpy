@@ -28,10 +28,6 @@ clean:  ## Clean build artifacts
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 
-publish:  ## Build and publish to PyPI (requires TWINE_PASSWORD)
-	$(MAKE) clean
-	$(MAKE) build
-	uv run twine upload dist/*
 
 dev-install:  ## Install in development mode with dev dependencies
 	uv sync --extra dev
