@@ -185,7 +185,7 @@ class TestDualRuntimeMagicSyntax:
 
             # Test the full chainable syntax
             chainable = h.div(className="test")
-            result = chainable["Hello World"]
+            chainable["Hello World"]
 
             # Should create chainable proxy, then final element
             assert mock_createElement.call_count == 2
@@ -206,7 +206,7 @@ class TestDualRuntimeMagicSyntax:
             mock_to_js.return_value = {'className': 'test'}
 
             # Should use as_object_map approach
-            chainable = h.div(className="test")
+            h.div(className="test")
 
             # Should have called as_object_map
             mock_element.as_object_map.assert_called_once()
@@ -223,7 +223,7 @@ class TestDualRuntimeMagicSyntax:
             mock_createElement.side_effect = Exception("createElement failed")
 
             try:
-                result = h.div()
+                h.div()
                 # Should handle error gracefully (implementation dependent)
             except Exception:
                 # Expected to potentially fail, but shouldn't crash
@@ -274,7 +274,7 @@ class TestEdgeCasesAndCompatibility:
             ('cpython', 'cpython')  # Pyodide
         ]
 
-        for impl_name, expected in test_cases:
+        for impl_name, _expected in test_cases:
             with patch('sys.implementation') as mock_impl:
                 mock_impl.name = impl_name
 
@@ -285,7 +285,7 @@ class TestEdgeCasesAndCompatibility:
                 mock_to_js.return_value = {'data-test': 'value'}
 
                 # Test underscore to hyphen conversion
-                result = h.div(data_test="value")
+                h.div(data_test="value")
 
                 # Should process props consistently
                 mock_to_js.assert_called()

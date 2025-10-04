@@ -143,8 +143,8 @@ class TestHyperscriptSyntax:
 
     def test_basic_elements(self):
         """Test basic element creation"""
-        result1 = h.div["Hello World"]
-        result2 = h.p["Some text"]
+        h.div["Hello World"]
+        h.p["Some text"]
 
         assert mock_crank_core.createElement.call_count >= 2
         calls = mock_crank_core.createElement.call_args_list
@@ -154,8 +154,8 @@ class TestHyperscriptSyntax:
     def test_elements_with_props(self):
         """Test elements with properties"""
         text = "sample"
-        result1 = h.input(type="text", value=text)
-        result2 = h.div(className="my-class")["Content"]
+        h.input(type="text", value=text)
+        h.div(className="my-class")["Content"]
 
         mock_crank_core.createElement.assert_called()
 
@@ -172,7 +172,7 @@ class TestHyperscriptSyntax:
 
     def test_nested_elements(self):
         """Test nested element structures"""
-        result = h.ul[
+        h.ul[
             h.li["Item 1"],
             h.li["Item 2"],
             h.li[
@@ -357,8 +357,7 @@ class TestREADMEExamples:
         """Test README Props Reassignment example"""
         @component
         def UserProfile(ctx, props):
-            for props in ctx:
-                user_id = props.user_id
+            for _props in ctx:
 
                 # Mock fetch_user
                 class MockUser:
@@ -569,7 +568,7 @@ class TestEdgeCases:
         builder = ElementBuilder("button")
 
         try:
-            result = builder._process_props_for_proxies(props)
+            builder._process_props_for_proxies(props)
         except Exception:
             pass  # Expected to fail in this case
 

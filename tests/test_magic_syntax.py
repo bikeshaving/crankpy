@@ -105,7 +105,7 @@ class TestMagicSyntax:
         mock_to_js.side_effect = capture_to_js
 
         # Act
-        result = h.div(data_test_id="button", aria_hidden="true")
+        h.div(data_test_id="button", aria_hidden="true")
 
         # Assert
         # Check that the processed props were passed to to_js
@@ -139,7 +139,7 @@ class TestMagicSyntax:
             pass
 
         # Act
-        result = h.button(onClick=click_handler)
+        h.button(onClick=click_handler)
 
         # Assert
         # Check that create_proxy was called with our function
@@ -168,7 +168,7 @@ class TestMagicSyntax:
         # Mock the patching function to track if it's called
         with patch('crank._patch_as_object_map_type') as mock_patch:
             # Act
-            result = h.span(test="prop")
+            h.span(test="prop")
 
             # Assert
             mock_patch.assert_called_once()
@@ -181,7 +181,7 @@ class TestMagicSyntaxIntegration:
         """Test the complete workflow of creating and using chainable elements."""
         # This test would require a more complex setup to mock the dynamic type patching
         # For now, we verify the basic structure is in place
-        assert hasattr(h.span, '__call__')
+        assert callable(h.span)
         assert hasattr(h, '__getattr__')
 
     def test_element_builder_methods_exist(self):
@@ -189,7 +189,7 @@ class TestMagicSyntaxIntegration:
         from crank import ElementBuilder
 
         builder = ElementBuilder('div')
-        assert hasattr(builder, '__call__')
+        assert callable(builder)
         assert hasattr(builder, '__getitem__')
         assert hasattr(builder, '_make_chainable_element')
         assert hasattr(builder, '_process_props_for_proxies')

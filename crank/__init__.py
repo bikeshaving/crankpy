@@ -84,7 +84,7 @@ class Context:
                 try:
                     value = getattr(js_context, attr)
                     setattr(self, attr, value)
-                except:
+                except Exception:
                     pass
 
     def refresh(self, func=None):
