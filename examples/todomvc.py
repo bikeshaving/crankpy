@@ -3,9 +3,11 @@ TodoMVC implementation in crankpy
 Complete TodoMVC app following the official spec at todomvc.com
 """
 
-from crank import h, component
-from crank.dom import renderer
 from js import document
+
+from crank import component, h
+from crank.dom import renderer
+
 
 @component
 def TodoItem(ctx, props):
@@ -54,11 +56,11 @@ def TodoItem(ctx, props):
         edit_title = ev.target.value
 
     for props in ctx:
-        # Convert JS proxy to Python dict for easier access  
+        # Convert JS proxy to Python dict for easier access
         todo_obj = props.todo
         todo = {
-            "id": todo_obj.id, 
-            "title": todo_obj.title, 
+            "id": todo_obj.id,
+            "title": todo_obj.title,
             "completed": todo_obj.completed
         }
         if not editing:
@@ -187,8 +189,8 @@ def TodoApp(ctx):
                 ),
                 h.label(htmlfor="toggle-all")["Mark all as complete"],
                 h.ul(className="todo-list")[
-                    [h(TodoItem, 
-                       todo=todo, 
+                    [h(TodoItem,
+                       todo=todo,
                        key=todo["id"],
                        on_toggle=toggle_todo,
                        on_edit=edit_todo,

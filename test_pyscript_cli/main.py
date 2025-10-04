@@ -2,10 +2,11 @@
 Test script to demonstrate Crankpy compatibility with PyScript CLI
 """
 
-from pyscript.js_modules import crank_core
-from crank import h, component
-from crank.dom import renderer
 from js import document
+
+from crank import component, h
+from crank.dom import renderer
+
 
 @component
 def Greeting(ctx):
@@ -15,17 +16,17 @@ def Greeting(ctx):
 @component
 def Counter(ctx):
     count = 0
-    
+
     @ctx.refresh
     def increment():
         nonlocal count
         count += 1
-    
-    @ctx.refresh  
+
+    @ctx.refresh
     def decrement():
         nonlocal count
         count -= 1
-    
+
     for _ in ctx:
         yield h.div[
             h.h2[f"Count: {count}"],

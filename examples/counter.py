@@ -2,9 +2,11 @@
 Counter Component - Simple working example with generator state management
 """
 
-from crank import h, component
-from crank.dom import renderer
 from js import document
+
+from crank import component, h
+from crank.dom import renderer
+
 
 @component
 def Counter(ctx):

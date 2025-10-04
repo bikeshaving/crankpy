@@ -2,11 +2,13 @@
 Crank.py Showcase - Demonstrates all major features
 """
 
-from crank import h, component
-from crank.dom import renderer
-from js import document
-import random
 import time
+
+from js import document
+
+from crank import component, h
+from crank.dom import renderer
+
 
 # 1. Simple static component (0 params)
 @component
@@ -21,15 +23,15 @@ def Logo():
 def Clock(ctx):
     """Updates every second to show current time"""
     import asyncio
-    
+
     async def update_time():
         while True:
             await asyncio.sleep(1)
             ctx.refresh()
-    
+
     # Start the async update loop
     asyncio.create_task(update_time())
-    
+
     for _ in ctx:
         current_time = time.strftime("%H:%M:%S")
         yield h.div(className="clock")[
@@ -44,7 +46,7 @@ def TodoItem(ctx, props):
     for props in ctx:
         todo = props.todo
         on_toggle = props.on_toggle
-        
+
         yield h.li(className="completed" if todo["done"] else "")[
             h.input(
                 type="checkbox",
@@ -67,7 +69,7 @@ def TodoApp(ctx):
     next_id = 4
     new_todo_text = ""
     filter_mode = "all"  # all, active, completed
-    
+
     @ctx.refresh
     def add_todo():
         nonlocal todos, next_id, new_todo_text
@@ -79,7 +81,7 @@ def TodoApp(ctx):
             })
             next_id += 1
             new_todo_text = ""
-    
+
     @ctx.refresh
     def toggle_todo(todo_id):
         nonlocal todos
@@ -87,26 +89,26 @@ def TodoApp(ctx):
             if todo["id"] == todo_id:
                 todo["done"] = not todo["done"]
                 break
-    
+
     @ctx.refresh
     def update_input(event):
         nonlocal new_todo_text
         new_todo_text = event.target.value
-    
+
     def handle_submit(event):
         event.preventDefault()
         add_todo()
-    
+
     @ctx.refresh
     def set_filter(mode):
         nonlocal filter_mode
         filter_mode = mode
-    
+
     @ctx.refresh
     def clear_completed():
         nonlocal todos
         todos = [t for t in todos if not t["done"]]
-    
+
     for _ in ctx:
         # Filter todos based on current mode
         if filter_mode == "active":
@@ -115,13 +117,13 @@ def TodoApp(ctx):
             visible_todos = [t for t in todos if t["done"]]
         else:
             visible_todos = todos
-        
+
         completed_count = sum(1 for t in todos if t["done"])
         active_count = len(todos) - completed_count
-        
+
         yield h.div(className="todo-app")[
             h.h2["Todo List"],
-            
+
             # Add todo form
             h.form(onSubmit=handle_submit, className="add-form")[
                 h.input(
@@ -133,7 +135,7 @@ def TodoApp(ctx):
                 ),
                 h.button(type="submit")["Add"]
             ],
-            
+
             # Filter buttons
             h.div(className="filters")[
                 h.button(
@@ -149,16 +151,16 @@ def TodoApp(ctx):
                     onClick=lambda: set_filter("completed")
                 )[f"Completed ({completed_count})"]
             ],
-            
+
             # Todo list
             h.ul(className="todo-list")[
-                [h(TodoItem, 
+                [h(TodoItem,
                     todo=todo,
                     on_toggle=toggle_todo,
                     key=todo["id"]
                 ) for todo in visible_todos]
             ],
-            
+
             # Footer
             h.div(className="todo-footer")[
                 h.span[f"{active_count} item{'s' if active_count != 1 else ''} left"],
@@ -173,17 +175,17 @@ def TodoApp(ctx):
 @component
 def SyntaxShowcase(ctx):
     """Shows different ways to use the h function"""
-    
+
     for _ in ctx:
         yield h.div(className="syntax-showcase")[
             h.h3["Hyperscript Syntax Examples"],
-            
+
             # Basic element with text
             h.p["Simple paragraph with text"],
-            
+
             # Element with props
             h.p(className="styled", id="my-paragraph")["Paragraph with props"],
-            
+
             # Nested elements
             h.ul[
                 h.li["First item"],
@@ -194,7 +196,7 @@ def SyntaxShowcase(ctx):
                     " content"
                 ]
             ],
-            
+
             # Element with style object
             h.div(style={
                 "background-color": "#f0f0f0",
@@ -203,7 +205,7 @@ def SyntaxShowcase(ctx):
             })[
                 "Styled div with object notation"
             ],
-            
+
             # Fragment with key prop (when you need fragment properties)
             h("", key="fragment-example")[
                 h.span["Fragment "],
@@ -211,7 +213,7 @@ def SyntaxShowcase(ctx):
                 h.span["multiple "],
                 h.span["children"]
             ],
-            
+
             # Component composition
             h.div(className="composition")[
                 "Nested component: ",
@@ -223,28 +225,28 @@ def SyntaxShowcase(ctx):
 @component
 def ShowcaseApp(ctx):
     """Main application demonstrating all Crank.py features"""
-    
+
     for _ in ctx:
         yield h.div(className="showcase-container")[
             h(Logo),
-            
+
             h.div(className="features")[
                 h.section[
                     h.h2["⏰ Real-time Updates"],
                     h(Clock)
                 ],
-                
+
                 h.section[
                     h.h2["📝 Stateful Components"],
                     h(TodoApp)
                 ],
-                
+
                 h.section[
                     h.h2["🎨 Syntax Flexibility"],
                     h(SyntaxShowcase)
                 ]
             ],
-            
+
             h.footer[
                 h.p["Built with ", h.strong["Crank.py"], " - Python Components for the Web"],
                 h.p[

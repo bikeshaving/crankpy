@@ -17,6 +17,22 @@ test-integration:  ## Run Playwright integration tests
 test-main:  ## Run main test suite (alias for test-unit)
 	uv run python -m pytest tests/test_crank.py -v
 
+lint:  ## Run ruff linter
+	uv run ruff check .
+
+lint-fix:  ## Run ruff linter and fix issues
+	uv run ruff check --fix .
+
+format:  ## Format code with ruff
+	uv run ruff format .
+
+typecheck:  ## Run mypy type checking
+	uv run mypy crank/
+
+check:  ## Run all checks (lint + typecheck)
+	$(MAKE) lint
+	$(MAKE) typecheck
+
 serve:  ## Start local server on port 3333
 	python3 -m http.server 3333
 

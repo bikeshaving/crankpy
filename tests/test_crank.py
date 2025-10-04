@@ -1,7 +1,8 @@
-import pytest
 import sys
 import time
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
+
+import pytest
 
 # Mock PyScript modules before importing crank
 sys.modules['js'] = Mock()
@@ -38,7 +39,7 @@ mock_renderer = Mock()
 sys.modules['crank.dom'].renderer = mock_renderer
 
 # Now import crank after mocking
-from crank import h, component, Context, ElementBuilder
+from crank import Context, ElementBuilder, component, h
 
 
 class TestCoreFFI:
@@ -318,8 +319,9 @@ class TestREADMEExamples:
         mock_create_proxy.assert_called()
 
         # Test rendering pattern
-        from crank.dom import renderer
         from js import document
+
+        from crank.dom import renderer
 
         result = h(Greeting)
         renderer.render(result, document.body)

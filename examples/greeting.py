@@ -2,9 +2,11 @@
 Greeting Component - Simple component that displays a greeting message
 """
 
-from crank import h, component
-from crank.dom import renderer
 from js import document
+
+from crank import component, h
+from crank.dom import renderer
+
 
 @component
 def Greeting():
