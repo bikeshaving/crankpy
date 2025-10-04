@@ -51,7 +51,7 @@ def TodoItem(ctx, props):
             h.input(
                 type="checkbox",
                 checked=todo["done"],
-                onChange=lambda: on_toggle(todo["id"])
+                onchange=lambda: on_toggle(todo["id"])
             ),
             h.span[todo["text"]],
             h.small[f" (ID: {todo['id']})"]
@@ -130,7 +130,7 @@ def TodoApp(ctx):
                     type="text",
                     placeholder="What needs to be done?",
                     value=new_todo_text,
-                    onInput=update_input,
+                    oninput=update_input,
                     className="todo-input"
                 ),
                 h.button(type="submit")["Add"]
@@ -140,15 +140,15 @@ def TodoApp(ctx):
             h.div(className="filters")[
                 h.button(
                     className="active" if filter_mode == "all" else "",
-                    onClick=lambda: set_filter("all")
+                    onclick=lambda: set_filter("all")
                 )["All"],
                 h.button(
                     className="active" if filter_mode == "active" else "",
-                    onClick=lambda: set_filter("active")
+                    onclick=lambda: set_filter("active")
                 )[f"Active ({active_count})"],
                 h.button(
                     className="active" if filter_mode == "completed" else "",
-                    onClick=lambda: set_filter("completed")
+                    onclick=lambda: set_filter("completed")
                 )[f"Completed ({completed_count})"]
             ],
 
@@ -165,7 +165,7 @@ def TodoApp(ctx):
             h.div(className="todo-footer")[
                 h.span[f"{active_count} item{'s' if active_count != 1 else ''} left"],
                 h.button(
-                    onClick=clear_completed,
+                    onclick=clear_completed,
                     disabled=completed_count == 0
                 )["Clear completed"]
             ] if todos else None

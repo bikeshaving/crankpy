@@ -61,6 +61,7 @@ crank = ["py.typed"]
 
 [dependency-groups]
 dev = [
+    "pyright>=1.1.406",
     "ruff>=0.13.3",
 ]
 
@@ -88,3 +89,12 @@ ignore = [
 "__init__.py" = ["F401"]
 "tests/*.py" = ["E402"]  # Allow imports after mocking setup
 "examples/*.py" = ["E402", "B023"]  # Allow imports after setup and loop var binding issues
+
+[tool.pyright]
+pythonVersion = "3.8"
+typeCheckingMode = "basic"  # Start with basic, not strict
+reportUnknownMemberType = false  # For JS interop
+reportUnknownVariableType = false  # For PyScript/Pyodide  
+reportMissingImports = false  # Ignore JS module imports
+include = ["crank"]
+exclude = ["tests", "examples"]  # Focus on core library first

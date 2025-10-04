@@ -26,8 +26,12 @@ lint-fix:  ## Run ruff linter and fix issues
 format:  ## Format code with ruff
 	uv run ruff format .
 
-check:  ## Run all checks (lint)
+typecheck:  ## Run pyright type checking
+	uv run pyright crank/
+
+check:  ## Run all checks (lint + typecheck)
 	$(MAKE) lint
+	$(MAKE) typecheck
 
 serve:  ## Start local server on port 3333
 	python3 -m http.server 3333

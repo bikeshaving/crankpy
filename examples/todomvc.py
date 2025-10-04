@@ -18,23 +18,23 @@ def TodoItem(ctx, props):
     def toggle_todo(ev):
         if editing:
             return
-        props.on_toggle(props.todo.id)
+        props["ontoggle"](props["todo"]["id"])
 
     @ctx.refresh
     def delete_todo(ev):
-        props.on_delete(props.todo.id)
+        props["ondelete"](props["todo"]["id"])
 
     @ctx.refresh
     def start_editing(ev):
         nonlocal editing, edit_title
         editing = True
-        edit_title = props.todo.title
+        edit_title = props["todo"]["title"]
 
     @ctx.refresh
     def save_edit(ev):
         nonlocal editing
         if edit_title.strip():
-            props.on_edit(props.todo.id, edit_title.strip())
+            props["onedit"](props["todo"]["id"], edit_title.strip())
         editing = False
 
     @ctx.refresh
@@ -56,13 +56,8 @@ def TodoItem(ctx, props):
         edit_title = ev.target.value
 
     for props in ctx:
-        # Convert JS proxy to Python dict for easier access
-        todo_obj = props.todo
-        todo = {
-            "id": todo_obj.id,
-            "title": todo_obj.title,
-            "completed": todo_obj.completed
-        }
+        # Props are now Python dicts - direct access
+        todo = props["todo"]
         if not editing:
             edit_title = todo["title"]
 
@@ -192,9 +187,9 @@ def TodoApp(ctx):
                     [h(TodoItem,
                        todo=todo,
                        key=todo["id"],
-                       on_toggle=toggle_todo,
-                       on_edit=edit_todo,
-                       on_delete=delete_todo
+                       ontoggle=toggle_todo,
+                       onedit=edit_todo,
+                       ondelete=delete_todo
                      ) for todo in filtered_todos]
                 ]
             ],

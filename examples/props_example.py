@@ -24,8 +24,8 @@ def OldStyleComponent(ctx):
 def PropsAndContextComponent(ctx, props):
     # Direct access to props object
     for props in ctx:  # Props reassignment in for loop!
-        name = props.name if props and props.name else "World"
-        count = props.count if props and props.count else 0
+        name = props.get("name", "World") if props else "World"
+        count = props.get("count", 0) if props else 0
 
         yield h.div(className="props-ctx")[
             h.p[f"Hello, {name}!"],
@@ -38,8 +38,8 @@ def ManualDestructuringComponent(ctx, props):
     # Manually extract props in the for loop
     for props in ctx:
         # Extract specific props each time
-        name = props.name if props and hasattr(props, 'name') else "Anonymous"
-        count = props.count if props and hasattr(props, 'count') else 0
+        name = props.get("name", "Anonymous") if props else "Anonymous"
+        count = props.get("count", 0) if props else 0
 
         yield h.div(className="destructured")[
             h.p[f"Name: {name}"],
@@ -69,7 +69,7 @@ def PropsExample(ctx):
             h.h3["Method 3 - Manual destructuring:"],
             h(ManualDestructuringComponent, name="Charlie", count=counter),
 
-            h.button(onClick=increment)["Increment Count"],
+            h.button(onclick=increment)["Increment Count"],
 
             h.hr(),
             h.p["Click the button to see props reassignment in action!"]

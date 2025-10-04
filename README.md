@@ -88,8 +88,8 @@ def Counter(ctx):
     for _ in ctx:
         yield h.div[
             h.h2[f"Count: {count}"],
-            h.button(onClick=increment)["+"],
-            h.button(onClick=decrement)["-"]
+            h.button(onclick=increment)["+"],
+            h.button(onclick=decrement)["-"]
         ]
 ```
 
@@ -258,7 +258,7 @@ def MyComponent(ctx):
         clear_interval(timer)
 
     for _ in ctx:
-        yield h.div(onClick=handle_click)["Click me"]
+        yield h.div(onclick=handle_click)["Click me"]
 ```
 
 ## Examples
@@ -297,7 +297,7 @@ def TodoApp(ctx):
                     h.input(
                         type="checkbox",
                         checked=todo["done"],
-                        onChange=lambda i=i: toggle_todo(i)
+                        onchange=lambda i=i: toggle_todo(i)
                     ),
                     h.span[todo["text"]]
                 ] for i, todo in enumerate(todos)]
@@ -327,6 +327,73 @@ def Clock(ctx):
             current_time
         ]
 ```
+
+## TypeScript-Style Typing
+
+Crank.py supports optional TypeScript-style type safety with TypedDict for component props:
+
+```python
+from typing import TypedDict, Callable
+from crank import component, Context, Props
+
+# Define component prop interface
+class ButtonProps(TypedDict, total=False):
+    onclick: Callable[[], None]  # lowercase event props
+    disabled: bool
+    children: str
+
+# Type-safe component (optional - basic Props works too)
+@component
+def Button(ctx: Context, props: ButtonProps):
+    for props in ctx:
+        yield h.button(
+            onclick=props.get("onclick"),
+            disabled=props.get("disabled", False)
+        )[props.get("children", "Click me")]
+
+# Usage with autocomplete and validation
+h(Button, onclick=lambda: print("clicked"), children="Submit")
+```
+
+### Type Checking
+
+Install and run Pyright for type checking:
+
+```bash
+# Install type checker
+uv add --dev pyright
+
+# Run type checking
+uv run pyright crank/
+```
+
+### Props as Dictionaries
+
+Components receive props as Python dictionaries (converted from JS objects):
+
+```python
+@component 
+def MyComponent(ctx: Context, props: Props):
+    for props in ctx:
+        # Access props using dict syntax
+        title = props["title"]
+        onclick = props["onclick"]
+        
+        yield h.div[
+            h.h1[title],
+            h.button(onclick=onclick)["Click me"]
+        ]
+```
+
+### Event Props Convention
+
+Use lowercase for all event and callback props:
+
+- `onclick` not `onClick`
+- `onchange` not `onChange` 
+- `ontoggle` not `onToggle`
+
+This matches HTML attribute conventions and provides consistency.
 
 ## Testing
 

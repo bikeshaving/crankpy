@@ -36,9 +36,9 @@ def Counter(ctx):
                 h.span(className="count-value")[str(count)],
             ],
             h.div(className="counter-controls")[
-                h.button(className="btn-decrement", onClick=decrement)["-"],
-                h.button(className="btn-reset", onClick=reset)["Reset"],
-                h.button(className="btn-increment", onClick=increment)["+"],
+                h.button(className="btn-decrement", onclick=decrement)["-"],
+                h.button(className="btn-reset", onclick=reset)["Reset"],
+                h.button(className="btn-increment", onclick=increment)["+"],
             ],
         ]
 

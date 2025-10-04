@@ -3,7 +3,7 @@ Crank.py - Lightweight Python wrapper for Crank JavaScript framework
 """
 
 import inspect
-from typing import Callable
+from typing import Any, Callable, Dict, List, TypedDict, Union
 
 from js import Object, Symbol
 from pyodide.ffi import JsProxy
@@ -54,6 +54,18 @@ Portal = crank.Portal
 Copy = crank.Copy
 Raw = crank.Raw
 Text = crank.Text
+
+# Type definitions for props and components
+Props = Dict[str, Any]
+Children = Union[str, Element, List["Children"]]
+
+# Example TypedDict for component props (optional usage)
+class TodoItemProps(TypedDict, total=False):
+    """Example props interface for TodoItem component"""
+    todo: Dict[str, Any]
+    ontoggle: Callable[[int], None]  # lowercase event props!
+    ondelete: Callable[[int], None]
+    onedit: Callable[[int, str], None]
 
 # Context wrapper to add Python-friendly API
 class Context:
@@ -193,6 +205,14 @@ def component(func: Callable) -> Callable:
         # Wrap the JS context with our Python Context wrapper
         wrapped_ctx = Context(ctx)
 
+        # Convert props to Python dict for dual runtime compatibility
+        if hasattr(props, 'to_py'):
+            # Pyodide: Use to_py() method
+            python_props = props.to_py() if props else {}
+        else:
+            # MicroPython: Convert or use as-is if already dict
+            python_props = dict(props) if props else {}
+
         if len(params) == 0:
             # No parameters - just call the function
             return func()
@@ -200,8 +220,8 @@ def component(func: Callable) -> Callable:
             # Single parameter - pass wrapped ctx
             return func(wrapped_ctx)
         elif len(params) == 2:
-            # Two parameters - pass wrapped ctx, then props
-            return func(wrapped_ctx, props)
+            # Two parameters - pass wrapped ctx, then props dict
+            return func(wrapped_ctx, python_props)
         else:
             # More than 2 parameters is not supported
             raise ValueError(f"Component function {func.__name__} has too many parameters. Expected 0-2, got {len(params)}")
@@ -566,4 +586,8 @@ __all__ = [
         'Raw',
         'h',
         'crank',
+        # Type definitions
+        'Props',
+        'Children',
+        'TodoItemProps',
 ]
