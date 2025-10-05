@@ -11,8 +11,8 @@ import sys
 from typing import Callable, Generic, List, Literal, TypedDict, TypeVar, Union
 from unittest.mock import Mock
 
-# Import existing mocks from test_crank to ensure consistency
-from test_crank import mock_crank_core, mock_create_proxy, mock_JsProxy, mock_to_js
+# Import mocks for PyScript/Pyodide modules
+from mock_setup import mock_crank_core, mock_create_proxy, mock_JsProxy, mock_to_js
 
 from crank import Children, Context, Element, Props, component, h
 

@@ -7,8 +7,8 @@ from unittest.mock import Mock
 
 import pytest
 
-# Import existing mocks from test_crank to ensure consistency
-from test_crank import mock_crank_core, mock_create_proxy, mock_JsProxy, mock_to_js
+# Import mocks for PyScript/Pyodide modules
+from mock_setup import mock_crank_core, mock_create_proxy, mock_JsProxy, mock_to_js
 
 from crank import component, h
 
