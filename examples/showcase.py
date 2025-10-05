@@ -44,8 +44,8 @@ def Clock(ctx):
 def TodoItem(ctx, props):
     """Individual todo item with toggle functionality"""
     for props in ctx:
-        todo = props.todo
-        on_toggle = props.on_toggle
+        todo = props["todo"]
+        on_toggle = props["on_toggle"]
 
         yield h.li(className="completed" if todo["done"] else "")[
             h.input(

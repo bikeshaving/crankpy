@@ -196,10 +196,8 @@ class Context(Generic[T, TResult]):
                 return self
 
             async def __anext__(self) -> T:
-                # We don't call next() on the JS async iterator to avoid ctx.value access
-                if self.done:
-                    raise StopAsyncIteration
-                self.done = True
+                # Crank.js async iterators should yield continuously for "continuous mode"
+                # This enables racing and cooperative rendering patterns
                 if hasattr(self.js_context, 'props'):
                     props = self.js_context.props
                     # Convert JsProxy to Python dict for dual runtime compatibility
