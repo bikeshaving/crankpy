@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complex Props Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="app"></div>
+    
+    <py-script>
+        from crank import h, component
+        from crank.dom import renderer
+        from js import document
+        
+        @component
+        def ComplexPropsTest(ctx, props):
+            for props in ctx:
+                user = props.get("user", {})
+                permissions = props.get("permissions", [])
+                config = props.get("config", {})
+                
+                yield h.div(data_testid="complex-props")[
+                    h.p[f"User: {user.get('name', 'Unknown')}"],
+                    h.p[f"Role: {user.get('role', 'user')}"],
+                    h.p[f"Permissions: {len(permissions)}"],
+                    h.p[f"Theme: {config.get('theme', 'default')}"]
+                ]
+        
+        complex_props = {
+            "user": {"name": "John Doe", "role": "admin"},
+            "permissions": ["read", "write", "admin"],
+            "config": {"theme": "dark", "debug": True}
+        }
+        
+        renderer.render(h(ComplexPropsTest, **complex_props), document.getElementById("app"))
+    </py-script>
+    
+    <py-config type="json">
+    {
+        "files": {
+            "../../crank/__init__.py": "./crank/__init__.py",
+            "../../crank/dom.py": "./crank/dom.py"
+        },
+        "js_modules": {
+            "main": {
+                "https://cdn.jsdelivr.net/npm/@b9g/crank@0.7.1/crank.js": "crank_core",
+                "https://cdn.jsdelivr.net/npm/@b9g/crank@0.7.1/dom.js": "crank_dom"
+            }
+        }
+    }
+    </py-config>
+</body>
+</html>

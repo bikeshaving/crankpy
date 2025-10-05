@@ -113,7 +113,6 @@ class TestMicroPythonRuntime:
         expect(child2).to_be_visible()
         expect(grandchild).to_contain_text("Nested span")
 
-    @pytest.mark.xfail(reason="Event handlers unstable in MicroPython tech preview")
     def test_micropython_counter_increments(self, page: Page):
         """Test that counter component increments correctly in MicroPython"""
         page.goto("http://localhost:3333/tests/test_pages/counter_micropython.html")

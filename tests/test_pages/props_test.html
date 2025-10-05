@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Props Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="app"></div>
+    
+    <py-script>
+        from crank import h, component
+        from crank.dom import renderer
+        from js import document
+        
+        @component
+        def UserProfile(ctx, props):
+            for props in ctx:
+                user = props.get("user", {})
+                yield h.div(data_testid="user-profile")[
+                    h.h2[user.get("name", "Unknown")],
+                    h.p[user.get("bio", "No bio")],
+                    h.img(src=user.get("avatar", ""))
+                ]
+        
+        user_data = {
+            "name": "Test User",
+            "bio": "Test bio",
+            "avatar": "avatar.jpg"
+        }
+        
+        renderer.render(h(UserProfile, user=user_data), document.getElementById("app"))
+    </py-script>
+    
+    <py-config type="json">
+    {
+        "files": {
+            "../../crank/__init__.py": "./crank/__init__.py",
+            "../../crank/dom.py": "./crank/dom.py"
+        },
+        "js_modules": {
+            "main": {
+                "https://cdn.jsdelivr.net/npm/@b9g/crank@0.7.1/crank.js": "crank_core",
+                "https://cdn.jsdelivr.net/npm/@b9g/crank@0.7.1/dom.js": "crank_dom"
+            }
+        }
+    }
+    </py-config>
+</body>
+</html>

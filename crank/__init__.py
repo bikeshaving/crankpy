@@ -171,7 +171,14 @@ class Context(Generic[T, TResult]):
                 # Crank.js contexts yield props indefinitely in for-of loops
                 # We don't call next() on the JS iterator to avoid ctx.value access
                 if hasattr(self.js_context, 'props'):
-                    return self.js_context.props  # type: ignore[return-value]
+                    props = self.js_context.props
+                    # Convert JsProxy to Python dict for dual runtime compatibility
+                    if hasattr(props, 'to_py'):
+                        # Pyodide: Use to_py() method
+                        return props.to_py() if props else {}  # type: ignore[return-value]
+                    else:
+                        # MicroPython: Convert or use as-is if already dict
+                        return dict(props) if props else {}  # type: ignore[return-value]
                 else:
                     return {}  # type: ignore[return-value]
 
@@ -195,7 +202,14 @@ class Context(Generic[T, TResult]):
                     raise StopAsyncIteration
                 self.done = True
                 if hasattr(self.js_context, 'props'):
-                    return self.js_context.props  # type: ignore[return-value]
+                    props = self.js_context.props
+                    # Convert JsProxy to Python dict for dual runtime compatibility
+                    if hasattr(props, 'to_py'):
+                        # Pyodide: Use to_py() method
+                        return props.to_py() if props else {}  # type: ignore[return-value]
+                    else:
+                        # MicroPython: Convert or use as-is if already dict
+                        return dict(props) if props else {}  # type: ignore[return-value]
                 else:
                     return {}  # type: ignore[return-value]
 
@@ -205,7 +219,14 @@ class Context(Generic[T, TResult]):
     def props(self) -> T:
         """Access current props with proper typing"""
         if hasattr(self._js_context, 'props'):
-            return self._js_context.props  # type: ignore[return-value]
+            props = self._js_context.props
+            # Convert JsProxy to Python dict for dual runtime compatibility
+            if hasattr(props, 'to_py'):
+                # Pyodide: Use to_py() method
+                return props.to_py() if props else {}  # type: ignore[return-value]
+            else:
+                # MicroPython: Convert or use as-is if already dict
+                return dict(props) if props else {}  # type: ignore[return-value]
         return {}  # type: ignore[return-value]
 
     def __getattr__(self, name):

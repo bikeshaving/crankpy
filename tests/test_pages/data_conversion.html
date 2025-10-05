@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Conversion Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="app"></div>
+    
+    <py-script>
+        from crank import h, component
+        from crank.dom import renderer
+        from js import document
+        
+        @component
+        def DataTest(ctx):
+            # Test Python to JS data conversion
+            test_user = {"name": "Test User", "age": 25, "items": ["a", "b", "c"]}
+            
+            for _ in ctx:
+                yield h.div(data_testid="data-test")[
+                    h.div(data_testid="data-display")[
+                        h.p[f"Name: {test_user['name']}"],
+                        h.p[f"Age: {test_user['age']}"],
+                        h.p[f"Items: {len(test_user['items'])}"]
+                    ]
+                ]
+        
+        renderer.render(h(DataTest), document.getElementById("app"))
+    </py-script>
+    
+    <py-config type="json">
+    {
+        "files": {
+            "../../crank/__init__.py": "./crank/__init__.py",
+            "../../crank/dom.py": "./crank/dom.py"
+        },
+        "js_modules": {
+            "main": {
+                "https://cdn.jsdelivr.net/npm/@b9g/crank@0.7.1/crank.js": "crank_core",
+                "https://cdn.jsdelivr.net/npm/@b9g/crank@0.7.1/dom.js": "crank_dom"
+            }
+        }
+    }
+    </py-config>
+</body>
+</html>
