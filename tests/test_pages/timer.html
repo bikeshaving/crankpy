@@ -21,16 +21,18 @@
             import time
             start_time = time.time()
             
-            @ctx.refresh
-            def update_timer():
-                setTimeout(update_timer, 100)  # Update more frequently
+            def update():
+                ctx.refresh()
+                from pyodide.ffi import create_proxy
+                setTimeout(create_proxy(update), 1000)  # Update every second
             
-            # Start updates immediately
-            update_timer()
+            # Start the timer
+            from pyodide.ffi import create_proxy
+            setTimeout(create_proxy(update), 1000)
             
             for _ in ctx:
                 elapsed = int(time.time() - start_time)
-                yield h.div(data_testid="timer")[f"Time: {elapsed}.0s"]
+                yield h.div(data_testid="timer")[f"Time: {elapsed}."]
         
         renderer.render(h(Timer), document.getElementById("app"))
     </py-script>

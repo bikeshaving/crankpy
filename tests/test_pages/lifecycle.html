@@ -20,9 +20,14 @@
             mounted = True
             
             @ctx.refresh
-            def unmount_component():
+            def unmount_component(event=None):
                 nonlocal mounted
                 mounted = False
+            
+            @ctx.refresh
+            def mount_component(event=None):
+                nonlocal mounted
+                mounted = True
             
             @ctx.cleanup
             def on_cleanup():
@@ -46,7 +51,8 @@
                     ]
                 else:
                     yield h.div(data_testid="lifecycle-test")[
-                        h.p["Component unmounted"]
+                        h.p["Component unmounted"],
+                        h.button(onclick=mount_component, data_testid="mount")["Mount"]
                     ]
         
         renderer.render(h(LifecycleTest), document.getElementById("app"))
