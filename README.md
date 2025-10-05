@@ -330,34 +330,172 @@ def Clock(ctx):
 
 ## TypeScript-Style Typing
 
-Crank.py supports optional TypeScript-style type safety with TypedDict for component props:
+Crank.py provides comprehensive type safety with TypedDict interfaces, Context typing, and full IDE support through Pyright.
+
+### Component Props with TypedDict
+
+Define strict component interfaces using TypedDict:
 
 ```python
-from typing import TypedDict, Callable
-from crank import component, Context, Props
+from typing import TypedDict, Callable, Optional
+from crank import component, Context, Props, Children
 
-# Define component prop interface
+# Required and optional props
 class ButtonProps(TypedDict, total=False):
-    onclick: Callable[[], None]  # lowercase event props
+    onclick: Callable[[], None]  # Event handlers always lowercase
     disabled: bool
-    children: str
+    variant: str  # e.g., "primary", "secondary" 
+    children: Children
 
-# Type-safe component (optional - basic Props works too)
+# Complex component with nested data
+class TodoItemProps(TypedDict):
+    todo: "TodoDict"  # Reference to another type
+    ontoggle: Callable[[int], None]
+    ondelete: Callable[[int], None] 
+    onedit: Callable[[int, str], None]
+
+class TodoDict(TypedDict):
+    id: int
+    title: str
+    completed: bool
+
+# Type-safe components
 @component
 def Button(ctx: Context, props: ButtonProps):
     for props in ctx:
         yield h.button(
             onclick=props.get("onclick"),
-            disabled=props.get("disabled", False)
+            disabled=props.get("disabled", False),
+            className=f"btn btn-{props.get('variant', 'primary')}"
         )[props.get("children", "Click me")]
 
-# Usage with autocomplete and validation
-h(Button, onclick=lambda: print("clicked"), children="Submit")
+@component  
+def TodoItem(ctx: Context, props: TodoItemProps):
+    for props in ctx:
+        todo = props["todo"]
+        yield h.li[
+            h.input(
+                type="checkbox", 
+                checked=todo["completed"],
+                onchange=lambda: props["ontoggle"](todo["id"])
+            ),
+            h.span[todo["title"]],
+            h.button(onclick=lambda: props["ondelete"](todo["id"]))["×"]
+        ]
 ```
 
-### Type Checking
+### Core Crank.py Types
 
-Install and run Pyright for type checking:
+```python
+from crank import Element, Context, Props, Children
+
+# Basic types
+Props = Dict[str, Any]  # General props dict
+Children = Union[str, Element, List["Children"]]  # Nested content
+
+# Generic Context typing (similar to Crank.js)
+Context[PropsType, ResultType]  # T = props type, TResult = element result type
+
+# Context with full method typing
+def my_component(ctx: Context[MyProps, Element], props: MyProps):
+    # All context methods are typed
+    ctx.refresh()  # () -> None
+    ctx.schedule(callback)  # (Callable) -> None  
+    ctx.after(callback)    # (Callable) -> None
+    ctx.cleanup(callback)  # (Callable) -> None
+    
+    # Iterator protocol for generator components
+    for props in ctx:  # Each iteration gets updated props (typed as MyProps)
+        yield h.div["Updated with new props"]
+    
+    # Direct props access with typing
+    current_props: MyProps = ctx.props
+```
+
+### Component Patterns & Generics
+
+Create reusable, typed component patterns:
+
+```python
+from typing import TypedDict, Generic, TypeVar, List
+
+# Generic list component
+T = TypeVar('T')
+
+class ListProps(TypedDict, Generic[T]):
+    items: List[T]
+    render_item: Callable[[T], Element]
+    onselect: Callable[[T], None]
+
+@component
+def GenericList(ctx: Context[ListProps[T], Element], props: ListProps[T]):
+    for props in ctx:  # props is properly typed as ListProps[T]
+        yield h.ul[
+            [h.li(
+                key=i,
+                onclick=lambda item=item: props["onselect"](item)
+            )[props["render_item"](item)] 
+             for i, item in enumerate(props["items"])]
+        ]
+
+# Usage with type inference
+user_list_props: ListProps[User] = {
+    "items": users,
+    "render_item": lambda user: h.span[user.name],
+    "onselect": handle_user_select
+}
+```
+
+### Advanced Props Patterns
+
+```python
+# Union types for polymorphic components
+from typing import Union, Literal
+
+class IconButtonProps(TypedDict, total=False):
+    variant: Literal["icon", "text", "both"]
+    icon: str
+    onclick: Callable[[], None]
+    children: Children
+
+class FormFieldProps(TypedDict):
+    name: str
+    value: Union[str, int, bool]
+    onchange: Callable[[Union[str, int, bool]], None]
+    # Discriminated union based on field type
+    field_type: Literal["text", "number", "checkbox"]
+
+@component
+def FormField(ctx: Context, props: FormFieldProps):
+    for props in ctx:
+        field_type = props["field_type"]
+        
+        if field_type == "checkbox":
+            yield h.input(
+                type="checkbox",
+                name=props["name"],
+                checked=bool(props["value"]),
+                onchange=lambda e: props["onchange"](e.target.checked)
+            )
+        elif field_type == "number":
+            yield h.input(
+                type="number", 
+                name=props["name"],
+                value=str(props["value"]),
+                onchange=lambda e: props["onchange"](int(e.target.value))
+            )
+        else:  # text
+            yield h.input(
+                type="text",
+                name=props["name"], 
+                value=str(props["value"]),
+                onchange=lambda e: props["onchange"](e.target.value)
+            )
+```
+
+### Type Checking Setup
+
+Install and configure Pyright for comprehensive type checking:
 
 ```bash
 # Install type checker
@@ -365,6 +503,20 @@ uv add --dev pyright
 
 # Run type checking
 uv run pyright crank/
+
+# Run all checks (lint + types)
+make check
+```
+
+**pyproject.toml configuration:**
+```toml
+[tool.pyright]
+pythonVersion = "3.8"
+typeCheckingMode = "basic"
+reportUnknownMemberType = false  # For JS interop
+reportMissingImports = false     # Ignore PyScript imports
+include = ["crank"]
+exclude = ["tests", "examples"]
 ```
 
 ### Props as Dictionaries

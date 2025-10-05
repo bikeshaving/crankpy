@@ -29,6 +29,13 @@ format:  ## Format code with ruff
 typecheck:  ## Run pyright type checking
 	uv run pyright crank/
 
+typecheck-tests:  ## Run type checking on type-only tests
+	uv run pyright tests/test_types.py
+
+typecheck-all:  ## Run all type checking (core + tests)
+	$(MAKE) typecheck
+	$(MAKE) typecheck-tests
+
 check:  ## Run all checks (lint + typecheck)
 	$(MAKE) lint
 	$(MAKE) typecheck

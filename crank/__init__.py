@@ -3,7 +3,18 @@ Crank.py - Lightweight Python wrapper for Crank JavaScript framework
 """
 
 import inspect
-from typing import Any, Callable, Dict, List, TypedDict, Union
+from typing import (
+    Any,
+    AsyncIterator,
+    Callable,
+    Dict,
+    Generic,
+    Iterator,
+    List,
+    TypedDict,
+    TypeVar,
+    Union,
+)
 
 from js import Object, Symbol
 from pyodide.ffi import JsProxy
@@ -55,6 +66,10 @@ Copy = crank.Copy
 Raw = crank.Raw
 Text = crank.Text
 
+# Type variables for generic Context
+T = TypeVar('T', bound=Dict[str, Any])  # Props type
+TResult = TypeVar('TResult')  # Element result type
+
 # Type definitions for props and components
 Props = Dict[str, Any]
 Children = Union[str, Element, List["Children"]]
@@ -67,8 +82,8 @@ class TodoItemProps(TypedDict, total=False):
     ondelete: Callable[[int], None]
     onedit: Callable[[int, str], None]
 
-# Context wrapper to add Python-friendly API
-class Context:
+# Context wrapper to add Python-friendly API with generic typing
+class Context(Generic[T, TResult]):
     """Wrapper for Crank Context with additional Python conveniences"""
 
     def __init__(self, js_context):
@@ -140,7 +155,7 @@ class Context:
             self._cleanup(proxy)
         return func
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[T]:
         """Custom iterator that avoids deprecated ctx.value access"""
         # Instead of calling iter(self._js_context) which triggers ctx.value,
         # we implement our own iterator that works with Crank's for-of pattern
@@ -149,20 +164,20 @@ class Context:
                 self.js_context = js_context
                 self.done = False
 
-            def __iter__(self):
+            def __iter__(self) -> Iterator[T]:
                 return self
 
-            def __next__(self):
+            def __next__(self) -> T:
                 # Crank.js contexts yield props indefinitely in for-of loops
                 # We don't call next() on the JS iterator to avoid ctx.value access
                 if hasattr(self.js_context, 'props'):
-                    return self.js_context.props
+                    return self.js_context.props  # type: ignore[return-value]
                 else:
-                    return {}
+                    return {}  # type: ignore[return-value]
 
         return ContextIterator(self._js_context)
 
-    def __aiter__(self):
+    def __aiter__(self) -> AsyncIterator[T]:
         """Custom async iterator that avoids deprecated ctx.value access"""
         # Instead of calling aiter(self._js_context) which triggers ctx.value,
         # implement our own async iterator
@@ -171,20 +186,27 @@ class Context:
                 self.js_context = js_context
                 self.done = False
 
-            def __aiter__(self):
+            def __aiter__(self) -> AsyncIterator[T]:
                 return self
 
-            async def __anext__(self):
+            async def __anext__(self) -> T:
                 # We don't call next() on the JS async iterator to avoid ctx.value access
                 if self.done:
                     raise StopAsyncIteration
                 self.done = True
                 if hasattr(self.js_context, 'props'):
-                    return self.js_context.props
+                    return self.js_context.props  # type: ignore[return-value]
                 else:
-                    return {}
+                    return {}  # type: ignore[return-value]
 
         return AsyncContextIterator(self._js_context)
+
+    @property
+    def props(self) -> T:
+        """Access current props with proper typing"""
+        if hasattr(self._js_context, 'props'):
+            return self._js_context.props  # type: ignore[return-value]
+        return {}  # type: ignore[return-value]
 
     def __getattr__(self, name):
         """Fallback to JS context for any missing attributes"""
