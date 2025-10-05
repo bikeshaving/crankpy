@@ -7,7 +7,32 @@ without runtime execution. Use `pyright tests/test_types.py` to run.
 Run with: uv run pyright tests/test_types.py
 """
 
+import sys
 from typing import Callable, Generic, List, Literal, TypedDict, TypeVar, Union
+from unittest.mock import Mock
+
+# Mock PyScript modules before importing crank
+sys.modules['js'] = Mock()
+sys.modules['pyscript'] = Mock()
+sys.modules['pyscript.ffi'] = Mock()
+sys.modules['pyscript.js_modules'] = Mock()
+sys.modules['pyodide'] = Mock()
+sys.modules['pyodide.ffi'] = Mock()
+
+# Mock the PyScript FFI functions
+mock_create_proxy = Mock()
+mock_to_js = Mock()
+mock_JsProxy = Mock()
+sys.modules['pyscript.ffi'].create_proxy = mock_create_proxy
+sys.modules['pyscript.ffi'].to_js = mock_to_js
+sys.modules['pyodide.ffi'].JsProxy = mock_JsProxy
+
+# Mock crank_core
+mock_crank_core = Mock()
+mock_crank_core.Element = Mock()
+mock_crank_core.createElement = Mock()
+mock_crank_core.Fragment = Mock()
+sys.modules['pyscript.js_modules'].crank_core = mock_crank_core
 
 from crank import Children, Context, Element, Props, component, h
 

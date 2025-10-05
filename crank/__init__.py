@@ -16,7 +16,6 @@ from typing import (
     Union,
 )
 
-from js import Object, Symbol
 from pyodide.ffi import JsProxy
 from pyscript.ffi import create_proxy, to_js
 from pyscript.js_modules import crank_core as crank
