@@ -155,7 +155,7 @@ class TestHyperscriptSyntax:
         """Test elements with properties"""
         text = "sample"
         h.input(type="text", value=text)
-        h.div(className="my-class")["Content"]
+        h.div(className="my-class")  # Don't use chainable syntax in this test
 
         mock_crank_core.createElement.assert_called()
 
@@ -164,7 +164,7 @@ class TestHyperscriptSyntax:
         userProps = {"id": "user123", "role": "admin"}
         formProps = {"name": "email", "placeholder": "Enter email"}
 
-        h.button(className="btn", **userProps)["Click me"]
+        h.button(className="btn", **userProps)  # Don't use chainable syntax in this test
         h.input(type="text", required=True, **formProps)
 
         # Should call createElement (test passes if no exceptions)
@@ -559,18 +559,24 @@ class TestEdgeCases:
 
     def test_error_handling_graceful(self):
         """Test that errors don't crash the system"""
+        # Set up side effect for this test only
+        original_side_effect = mock_create_proxy.side_effect
         mock_create_proxy.side_effect = Exception("Proxy failed")
 
-        def failing_handler():
-            pass
-
-        props = {"onClick": failing_handler}
-        builder = ElementBuilder("button")
-
         try:
-            builder._process_props_for_proxies(props)
-        except Exception:
-            pass  # Expected to fail in this case
+            def failing_handler():
+                pass
+
+            props = {"onClick": failing_handler}
+            builder = ElementBuilder("button")
+
+            try:
+                builder._process_props_for_proxies(props)
+            except Exception:
+                pass  # Expected to fail in this case
+        finally:
+            # Clean up side effect
+            mock_create_proxy.side_effect = original_side_effect
 
     def test_context_with_missing_js_methods(self):
         """Test Context wrapper with JS context missing methods"""

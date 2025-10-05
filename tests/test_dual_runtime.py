@@ -10,25 +10,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-# Mock PyScript/Pyodide imports for testing
-sys.modules['js'] = Mock()
-sys.modules['pyscript'] = Mock()
-sys.modules['pyscript.ffi'] = Mock()
-sys.modules['pyscript.js_modules'] = Mock()
-sys.modules['pyodide'] = Mock()
-sys.modules['pyodide.ffi'] = Mock()
+# Import existing mocks from test_crank to ensure consistency
+from test_crank import mock_crank_core, mock_create_proxy, mock_JsProxy, mock_to_js
 
-# Set up mock objects
-mock_to_js = Mock()
-mock_create_proxy = Mock()
-mock_createElement = Mock()
-mock_JsProxy = Mock()
-
-sys.modules['pyscript.ffi'].to_js = mock_to_js
-sys.modules['pyscript.ffi'].create_proxy = mock_create_proxy
-sys.modules['pyscript.js_modules'].crank_core = Mock()
-sys.modules['pyscript.js_modules'].crank_core.createElement = mock_createElement
-sys.modules['pyodide.ffi'].JsProxy = mock_JsProxy
+# Use the shared mock for createElement
+mock_createElement = mock_crank_core.createElement
 
 from crank import ElementBuilder, h
 

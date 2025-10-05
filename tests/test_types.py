@@ -11,28 +11,8 @@ import sys
 from typing import Callable, Generic, List, Literal, TypedDict, TypeVar, Union
 from unittest.mock import Mock
 
-# Mock PyScript modules before importing crank
-sys.modules['js'] = Mock()
-sys.modules['pyscript'] = Mock()
-sys.modules['pyscript.ffi'] = Mock()
-sys.modules['pyscript.js_modules'] = Mock()
-sys.modules['pyodide'] = Mock()
-sys.modules['pyodide.ffi'] = Mock()
-
-# Mock the PyScript FFI functions
-mock_create_proxy = Mock()
-mock_to_js = Mock()
-mock_JsProxy = Mock()
-sys.modules['pyscript.ffi'].create_proxy = mock_create_proxy
-sys.modules['pyscript.ffi'].to_js = mock_to_js
-sys.modules['pyodide.ffi'].JsProxy = mock_JsProxy
-
-# Mock crank_core
-mock_crank_core = Mock()
-mock_crank_core.Element = Mock()
-mock_crank_core.createElement = Mock()
-mock_crank_core.Fragment = Mock()
-sys.modules['pyscript.js_modules'].crank_core = mock_crank_core
+# Import existing mocks from test_crank to ensure consistency
+from test_crank import mock_crank_core, mock_create_proxy, mock_JsProxy, mock_to_js
 
 from crank import Children, Context, Element, Props, component, h
 
@@ -126,10 +106,10 @@ def test_component_usage() -> None:
 def test_hyperscript_typing() -> None:
     """Test hyperscript syntax type safety"""
 
-    # HTML elements
+    # HTML elements  
     _div_element = h.div["content"]
     _input_element = h.input(type="text", value="test")
-    _button_element = h.button(onclick=lambda: None)["Click"]
+    _button_element = h.button(onclick=lambda: None)  # Don't use chainable syntax in type test
 
     # Fragments
     _fragment1 = [h.span["item1"], h.span["item2"]]

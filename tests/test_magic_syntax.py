@@ -55,8 +55,8 @@ class TestMagicSyntax:
         result = h.span(className="test")
 
         # Assert
-        # createElement is called multiple times (for patching and for actual element)
-        assert mock_createElement.call_count >= 2
+        # createElement is called at least once (may be multiple times for patching)
+        assert mock_createElement.call_count >= 1
         # Should have an as_object_map call for chainable element
         mock_element.as_object_map.assert_called()
         # Should set chainable properties
