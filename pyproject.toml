@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "crankpy"
-version = "0.1.4"
-description = "Python Frontend Framework with Magic Syntax, Dual-Runtime Support (Pyodide/MicroPython), Powered by Crank.js"
+version = "0.2.0"
+description = "Python Frontend Framework with Async/Generators, Powered by Crank.js"
 readme = "README.md"
 license = "MIT"
 authors = [

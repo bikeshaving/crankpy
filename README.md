@@ -243,13 +243,13 @@ def MyComponent(ctx):
         pass
 
     @ctx.schedule
-    def before_render():
-        # Runs before each render
+    def schedule_render():
+        # Runs before the DOM nodes are inserted
         pass
 
     @ctx.after
     def after_render(node):
-        # Runs after DOM update
+        # Runs after DOM updates
         node.style.color = "blue"
 
     @ctx.cleanup
@@ -344,14 +344,14 @@ from crank import component, Context, Props, Children
 class ButtonProps(TypedDict, total=False):
     onclick: Callable[[], None]  # Event handlers always lowercase
     disabled: bool
-    variant: str  # e.g., "primary", "secondary" 
+    variant: str  # e.g., "primary", "secondary"
     children: Children
 
 # Complex component with nested data
 class TodoItemProps(TypedDict):
     todo: "TodoDict"  # Reference to another type
     ontoggle: Callable[[int], None]
-    ondelete: Callable[[int], None] 
+    ondelete: Callable[[int], None]
     onedit: Callable[[int, str], None]
 
 class TodoDict(TypedDict):
@@ -369,13 +369,13 @@ def Button(ctx: Context, props: ButtonProps):
             className=f"btn btn-{props.get('variant', 'primary')}"
         )[props.get("children", "Click me")]
 
-@component  
+@component
 def TodoItem(ctx: Context, props: TodoItemProps):
     for props in ctx:
         todo = props["todo"]
         yield h.li[
             h.input(
-                type="checkbox", 
+                type="checkbox",
                 checked=todo["completed"],
                 onchange=lambda: props["ontoggle"](todo["id"])
             ),
@@ -400,14 +400,14 @@ Context[PropsType, ResultType]  # T = props type, TResult = element result type
 def my_component(ctx: Context[MyProps, Element], props: MyProps):
     # All context methods are typed
     ctx.refresh()  # () -> None
-    ctx.schedule(callback)  # (Callable) -> None  
+    ctx.schedule(callback)  # (Callable) -> None
     ctx.after(callback)    # (Callable) -> None
     ctx.cleanup(callback)  # (Callable) -> None
-    
+
     # Iterator protocol for generator components
     for props in ctx:  # Each iteration gets updated props (typed as MyProps)
         yield h.div["Updated with new props"]
-    
+
     # Direct props access with typing
     current_props: MyProps = ctx.props
 ```
@@ -434,7 +434,7 @@ def GenericList(ctx: Context[ListProps[T], Element], props: ListProps[T]):
             [h.li(
                 key=i,
                 onclick=lambda item=item: props["onselect"](item)
-            )[props["render_item"](item)] 
+            )[props["render_item"](item)]
              for i, item in enumerate(props["items"])]
         ]
 
@@ -469,7 +469,7 @@ class FormFieldProps(TypedDict):
 def FormField(ctx: Context, props: FormFieldProps):
     for props in ctx:
         field_type = props["field_type"]
-        
+
         if field_type == "checkbox":
             yield h.input(
                 type="checkbox",
@@ -479,7 +479,7 @@ def FormField(ctx: Context, props: FormFieldProps):
             )
         elif field_type == "number":
             yield h.input(
-                type="number", 
+                type="number",
                 name=props["name"],
                 value=str(props["value"]),
                 onchange=lambda e: props["onchange"](int(e.target.value))
@@ -487,7 +487,7 @@ def FormField(ctx: Context, props: FormFieldProps):
         else:  # text
             yield h.input(
                 type="text",
-                name=props["name"], 
+                name=props["name"],
                 value=str(props["value"]),
                 onchange=lambda e: props["onchange"](e.target.value)
             )
@@ -524,13 +524,13 @@ exclude = ["tests", "examples"]
 Components receive props as Python dictionaries (converted from JS objects):
 
 ```python
-@component 
+@component
 def MyComponent(ctx: Context, props: Props):
     for props in ctx:
         # Access props using dict syntax
         title = props["title"]
         onclick = props["onclick"]
-        
+
         yield h.div[
             h.h1[title],
             h.button(onclick=onclick)["Click me"]
@@ -542,7 +542,7 @@ def MyComponent(ctx: Context, props: Props):
 Use lowercase for all event and callback props:
 
 - `onclick` not `onClick`
-- `onchange` not `onChange` 
+- `onchange` not `onChange`
 - `ontoggle` not `onToggle`
 
 This matches HTML attribute conventions and provides consistency.
@@ -592,6 +592,411 @@ Traditional Python web frameworks use templates and server-side rendering. Crank
 - **Prototyping** - Rapid UI development without JavaScript
 - **Data Visualization** - Interactive Python data apps in the browser
 
+## Advanced Features
+
+### Refs - Direct DOM Access
+
+Use `ref` callbacks to access rendered DOM elements directly:
+
+```python
+@component
+def VideoPlayer(ctx):
+    video_element = None
+
+    def set_video_ref(el):
+        nonlocal video_element
+        video_element = el
+
+    @ctx.refresh
+    def play():
+        if video_element:
+            video_element.play()
+
+    @ctx.refresh
+    def pause():
+        if video_element:
+            video_element.pause()
+
+    for _ in ctx:
+        yield h.div[
+            h.video(
+                src="/path/to/video.mp4",
+                ref=set_video_ref
+            ),
+            h.button(onclick=play)["Play"],
+            h.button(onclick=pause)["Pause"]
+        ]
+```
+
+**Ref Patterns:**
+- Refs fire once when elements are first rendered
+- Don't work on fragments - use on host elements only
+- For components, explicitly pass `ref` to child elements
+- Useful for focus management, DOM measurements, third-party integrations
+
+```python
+@component
+def AutoFocusInput(ctx, props):
+    for props in ctx:
+        yield h.input(
+            type="text",
+            placeholder=props.get("placeholder", ""),
+            ref=lambda el: el.focus()  # Auto-focus when rendered
+        )
+```
+
+### Fragments - Multiple Children Without Wrappers
+
+Fragments let you return multiple elements without extra DOM nodes:
+
+```python
+# Simple fragments - just use Python lists!
+@component
+def UserInfo(ctx, props):
+    user = props["user"]
+    for props in ctx:
+        yield [
+            h.h2[user["name"]],
+            h.p[user["bio"]],
+            h.span[f"Joined: {user['joined']}"]
+        ]
+
+# Fragment with props (for keys, etc.)
+@component
+def ConditionalContent(ctx, props):
+    show_content = props.get("show", False)
+    for props in ctx:
+        if show_content:
+            yield h("", key="content-fragment")[
+                h.div["Content block 1"],
+                h.div["Content block 2"]
+            ]
+        else:
+            yield h("", key="empty-fragment")["No content"]
+
+# Mixed fragments in JSX-like syntax
+@component
+def Navigation(ctx):
+    for _ in ctx:
+        yield h.nav[
+            h.div(className="logo")["MyApp"],
+            [  # Fragment for nav items
+                h.a(href="/home")["Home"],
+                h.a(href="/about")["About"],
+                h.a(href="/contact")["Contact"]
+            ],
+            h.button["Menu"]
+        ]
+```
+
+### Key Prop - List Reconciliation
+
+Keys help Crank identify which elements have changed in lists:
+
+```python
+@component
+def TodoList(ctx, props):
+    for props in ctx:
+        todos = props["todos"]
+        yield h.ul[
+            [h.li(key=todo["id"])[
+                h.input(
+                    type="checkbox",
+                    checked=todo["completed"],
+                    onchange=lambda todo_id=todo["id"]: props["onToggle"](todo_id)
+                ),
+                h.span[todo["text"]],
+                h.button(onclick=lambda todo_id=todo["id"]: props["onDelete"](todo_id))["×"]
+            ] for todo in todos]
+        ]
+
+# Without keys - elements match by position (can cause issues)
+# With keys - elements match by identity (preserves state correctly)
+
+@component
+def DynamicList(ctx):
+    items = ["A", "B", "C", "D"]
+    reversed_items = False
+
+    @ctx.refresh
+    def toggle_order():
+        nonlocal reversed_items
+        reversed_items = not reversed_items
+
+    for _ in ctx:
+        current_items = items[::-1] if reversed_items else items
+        yield h.div[
+            h.button(onclick=toggle_order)["Toggle Order"],
+            h.ul[
+                [h.li(key=item)[
+                    f"Item {item} (with preserved state)"
+                ] for item in current_items]
+            ]
+        ]
+```
+
+**Key Guidelines:**
+- Use stable, unique values (IDs, not array indices)
+- Keys only need to be unique among siblings
+- Can be strings, numbers, or any JavaScript value
+- Essential for stateful components and form inputs
+
+### Copy Prop - Prevent Re-rendering
+
+The `copy` prop prevents elements from re-rendering for performance optimization:
+
+```python
+@component
+def ExpensiveList(ctx, props):
+    for props in ctx:
+        items = props["items"]
+        yield h.ul[
+            [h.li(
+                key=item["id"],
+                copy=not item.get("hasChanged", True)  # Skip render if unchanged
+            )[
+                h(ExpensiveComponent, data=item["data"])
+            ] for item in items]
+        ]
+
+# Copy with string selectors (Crank 0.7+)
+@component
+def SmartForm(ctx, props):
+    for props in ctx:
+        yield h.form[
+            # Copy all props except value (keeps input uncontrolled)
+            h.input(
+                copy="!value",
+                type="text",
+                placeholder="Enter text...",
+                name="username"
+            ),
+
+            # Copy only specific props
+            h.div(
+                copy="class id",
+                className="form-section",
+                id="user-info",
+                data_updated=props.get("timestamp")
+            )[
+                h.label["Username"]
+            ],
+
+            # Copy children from previous render
+            h.div(copy="children", className="dynamic")[
+                # Children preserved from last render
+            ]
+        ]
+```
+
+**Copy Prop Syntax:**
+- `copy=True` - Prevent all re-rendering
+- `copy=False` - Normal re-rendering (default)
+- `copy="!value"` - Copy all props except `value`
+- `copy="class children"` - Copy only `class` and `children`
+- Cannot mix `!` and regular syntax
+
+### Special Components
+
+#### Raw - Inject HTML/DOM Nodes
+
+```python
+@component
+def MarkdownRenderer(ctx, props):
+    for props in ctx:
+        # Process markdown to HTML
+        markdown_text = props["markdown"]
+        html_content = markdown_to_html(markdown_text)  # Your markdown processor
+
+        yield h.div[
+            h(Raw, value=html_content)
+        ]
+
+# Insert actual DOM nodes
+@component
+def CanvasChart(ctx, props):
+    for props in ctx:
+        # Create chart canvas with external library
+        canvas_node = create_chart(props["data"])
+
+        yield h.div[
+            h.h3["Sales Chart"],
+            h(Raw, value=canvas_node)
+        ]
+```
+
+#### Portal - Render Into Different DOM Location
+
+```python
+from js import document
+
+@component
+def Modal(ctx, props):
+    for props in ctx:
+        is_open = props.get("isOpen", False)
+        if is_open:
+            # Render modal into document body instead of current location
+            modal_root = document.getElementById("modal-root")
+            yield h(Portal, root=modal_root)[
+                h.div(className="modal-backdrop", onclick=props["onClose"])[
+                    h.div(className="modal-content", onclick=lambda e: e.stopPropagation())[
+                        h.div(className="modal-header")[
+                            h.h2[props["title"]],
+                            h.button(onclick=props["onClose"])["×"]
+                        ],
+                        h.div(className="modal-body")[
+                            props.get("children", [])
+                        ]
+                    ]
+                ]
+            ]
+
+# Usage
+@component
+def App(ctx):
+    show_modal = False
+
+    @ctx.refresh
+    def open_modal():
+        nonlocal show_modal
+        show_modal = True
+
+    @ctx.refresh
+    def close_modal():
+        nonlocal show_modal
+        show_modal = False
+
+    for _ in ctx:
+        yield h.div[
+            h.h1["My App"],
+            h.button(onclick=open_modal)["Open Modal"],
+            h(Modal,
+                isOpen=show_modal,
+                title="Example Modal",
+                onClose=close_modal
+            )["Modal content here!"]
+        ]
+```
+
+#### Text - Explicit Text Node Control
+
+```python
+@component
+def TextManipulator(ctx):
+    text_node = None
+
+    @ctx.refresh
+    def update_text():
+        if text_node:
+            text_node.textContent = "Updated directly!"
+
+    @ctx.after
+    def after_render(node):
+        nonlocal text_node
+        if hasattr(node, 'textContent'):
+            text_node = node
+
+    for _ in ctx:
+        yield h.div[
+            h(Text, value="Original text"),
+            h.button(onclick=update_text)["Update Text"]
+        ]
+
+# Multiple separate text nodes (no concatenation)
+@component
+def FormattedText(ctx, props):
+    for props in ctx:
+        yield h.p[
+            h(Text, value="Hello "),
+            h(Text, value=props["name"]),
+            h(Text, value="!")
+        ]  # Creates 3 separate Text nodes
+```
+
+#### Copy - Prevent Subtree Re-rendering
+
+```python
+@component
+def MemoizedComponent(ctx, props):
+    last_props = None
+
+    for props in ctx:
+        if last_props and props_equal(props, last_props):
+            # Don't re-render if props haven't changed
+            yield h(Copy)
+        else:
+            yield h(ExpensiveComponent, **props)
+        last_props = props
+
+def props_equal(a, b):
+    """Shallow comparison of props"""
+    return (
+        set(a.keys()) == set(b.keys()) and
+        all(a[key] == b[key] for key in a.keys())
+    )
+
+# Higher-order memo component
+def memo(Component):
+    @component
+    def MemoWrapper(ctx, props):
+        last_props = None
+        yield h(Component, **props)
+
+        for props in ctx:
+            if last_props and props_equal(props, last_props):
+                yield h(Copy)
+            else:
+                yield h(Component, **props)
+            last_props = props
+
+    return MemoWrapper
+
+# Usage
+@memo
+@component
+def ExpensiveItem(ctx, props):
+    for props in ctx:
+        # Expensive computation here
+        yield h.div[f"Processed: {props['data']}"]
+```
+
+### Performance Patterns
+
+```python
+# Combining keys, copy, and memoization
+@component
+def OptimizedList(ctx, props):
+    for props in ctx:
+        items = props["items"]
+        yield h.ul[
+            [h.li(
+                key=item["id"],
+                copy=not item.get("_dirty", False)  # Skip clean items
+            )[
+                h(MemoizedItem,
+                    data=item["data"],
+                    onUpdate=props["onItemUpdate"]
+                )
+            ] for item in items]
+        ]
+
+# Selective prop copying for performance
+@component
+def SmartComponent(ctx, props):
+    for props in ctx:
+        yield h.div[
+            # Only re-render when content changes, preserve styling
+            h.div(copy="class style")[
+                props["dynamicContent"]
+            ],
+
+            # Expensive chart that rarely changes
+            h.div(copy=not props.get("chartDataChanged", False))[
+                h(ChartComponent, data=props["chartData"])
+            ]
+        ]
+```
+
 ## Learn More
 
 - **[Crank.js Documentation](https://crank.js.org/)** - The underlying framework
@@ -603,5 +1008,4 @@ Traditional Python web frameworks use templates and server-side rendering. Crank
 Contributions welcome! Please read our [Contributing Guide](CONTRIBUTING.md) first.
 
 ## License
-
-MIT © 2024
+MIT © 2025

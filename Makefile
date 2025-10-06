@@ -52,5 +52,5 @@ clean:  ## Clean build artifacts
 	find . -type f -name "*.pyc" -delete
 
 
-dev-install:  ## Install in development mode with dev dependencies
+install:  ## Install in development mode with dev dependencies
 	uv sync --extra dev

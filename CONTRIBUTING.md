@@ -10,28 +10,49 @@ Thank you for your interest in contributing to Crank.py! This project aims to pr
    cd crankpy
    ```
 
-2. Create a virtual environment:
+2. Install [uv](https://docs.astral.sh/uv/) if you haven't already:
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
 
-3. Install in development mode:
+3. Install dependencies and set up development environment:
    ```bash
-   pip install -e ".[dev]"
+   make install
    ```
 
-## Running Tests
+## Development Commands
+
+Use the Makefile for all development tasks:
 
 ```bash
-# Run all tests
-python -m pytest test_crank.py -v
+# Install dependencies
+make install
 
-# Run specific test
-python -m pytest test_crank.py::test_create_element -v
+# Run all tests (144+ comprehensive tests)
+make test
 
-# Run basic functionality test
-python test_crank.py
+# Run only unit tests
+make test-unit
+
+# Run integration tests (Playwright browser tests)
+make test-integration
+
+# Code quality checks
+make lint          # Run ruff linter
+make lint-fix      # Fix linting issues
+make format        # Format code
+make typecheck     # Run pyright type checking
+make check         # Run both lint + typecheck
+
+# Development server
+make serve         # Start server on port 3333
+
+# Build and clean
+make build         # Build package
+make clean         # Clean build artifacts
+
+# Help
+make help          # Show all available commands
 ```
 
 ## Code Style
@@ -73,9 +94,10 @@ When contributing, ensure Python APIs map directly to JavaScript Crank:
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature-name`
 3. Make your changes with tests
-4. Run the test suite: `python -m pytest test_crank.py`
-5. Update documentation as needed
-6. Submit a pull request with a clear description
+4. Run quality checks: `make check`
+5. Run the test suite: `make test`
+6. Update documentation as needed
+7. Submit a pull request with a clear description
 
 ## Release Process
 
