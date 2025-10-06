@@ -20,28 +20,15 @@ Built on the [Crank.js](https://crank.js.org/) framework.
 
 ## Installation
 
-### PyScript (Pyodide)
+### PyScript
 
 ```html
 <py-config type="toml">
 packages = ["crankpy"]
 
 [js_modules.main]
-"https://cdn.jsdelivr.net/npm/@b9g/crank@latest/crank.js" = "crank_core"
-"https://cdn.jsdelivr.net/npm/@b9g/crank@latest/dom.js" = "crank_dom"
-</py-config>
-```
-
-### PyScript (MicroPython)
-
-```html
-<py-config type="toml">
-type = "micropython"
-packages = ["crankpy"]
-
-[js_modules.main]
-"https://cdn.jsdelivr.net/npm/@b9g/crank@latest/crank.js" = "crank_core"
-"https://cdn.jsdelivr.net/npm/@b9g/crank@latest/dom.js" = "crank_dom"
+"https://esm.run/@b9g/crank@latest/crank.js" = "crank_core"
+"https://esm.run/@b9g/crank@latest/dom.js" = "crank_dom"
 </py-config>
 ```
 
@@ -885,20 +872,18 @@ def App(ctx):
 def TextManipulator(ctx):
     text_node = None
 
+    def set_text_ref(el):
+        nonlocal text_node
+        text_node = el
+
     @ctx.refresh
     def update_text():
         if text_node:
             text_node.textContent = "Updated directly!"
 
-    @ctx.after
-    def after_render(node):
-        nonlocal text_node
-        if hasattr(node, 'textContent'):
-            text_node = node
-
     for _ in ctx:
         yield h.div[
-            h(Text, value="Original text"),
+            h(Text, value="Original text", ref=set_text_ref),
             h.button(onclick=update_text)["Update Text"]
         ]
 
