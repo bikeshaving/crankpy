@@ -20,8 +20,8 @@ def test_micropython_typing_imports(page: Page):
 <head>
     <meta charset="UTF-8">
     <title>MicroPython Typing Test</title>
-    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
-    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+    <link rel="stylesheet" href="/tests/pyscript/core.css">
+    <script type="module" src="/tests/pyscript/core.js"></script>
 </head>
 <body>
     <div id="test-output"></div>
@@ -111,8 +111,8 @@ def test_micropython_crank_imports(page: Page):
 <head>
     <meta charset="UTF-8">
     <title>MicroPython Crank Import Test</title>
-    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
-    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+    <link rel="stylesheet" href="/tests/pyscript/core.css">
+    <script type="module" src="/tests/pyscript/core.js"></script>
 </head>
 <body>
     <div id="test-output"></div>
@@ -238,8 +238,8 @@ def test_micropython_vs_pyodide_behavior(page: Page):
 <head>
     <meta charset="UTF-8">
     <title>MicroPython vs Pyodide Comparison</title>
-    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
-    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+    <link rel="stylesheet" href="/tests/pyscript/core.css">
+    <script type="module" src="/tests/pyscript/core.js"></script>
 </head>
 <body>
     <h2>MicroPython Results:</h2>

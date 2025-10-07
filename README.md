@@ -4,7 +4,7 @@ Modern components for Python frontend development.
 
 [![PyScript Compatible](https://img.shields.io/badge/PyScript-Compatible-blue)](https://pyscript.net)
 [![Pyodide Compatible](https://img.shields.io/badge/Pyodide-Compatible-green)](https://pyodide.org)
-[![MicroPython Limited](https://img.shields.io/badge/MicroPython-Limited%20Support-yellow)](https://micropython.org)
+[![MicroPython Compatible](https://img.shields.io/badge/MicroPython-Compatible-green)](https://micropython.org)
 [![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Built on the [Crank.js](https://crank.js.org/) framework.
@@ -206,7 +206,7 @@ Crank.py supports three component signatures:
 # 1. Static components (no state)
 @component
 def Logo():
-    return h.div["🔧 Crank.py"]
+    return h.div["⚙️ Crank.py"]
 
 # 2. Context-only (internal state)
 @component
@@ -990,33 +990,34 @@ def SmartComponent(ctx, props):
 Crank.py works with both Pyodide and MicroPython runtimes, but with different levels of support:
 
 ### Pyodide (Recommended)
-- ✅ **Full feature support** - All Crank.py features work perfectly
-- ✅ **Generator components** - `for _ in ctx:` and `yield` patterns
-- ✅ **Async components** - `async def` components with `async for`
-- ✅ **Complex applications** - TodoMVC, interactive demos, real apps
-- ✅ **Production ready** - Stable, well-tested Python implementation
+- **Full feature support** - All Crank.py features work perfectly
+- **Generator components** - `for _ in ctx:` and `yield` patterns
+- **Async components** - `async def` components with `async for`
+- **Complex applications** - TodoMVC, interactive demos, real apps
+- **Production ready** - Stable, well-tested Python implementation
 
-### MicroPython (Limited)
-- ✅ **Basic components** - Simple `return` style components work perfectly
-- ✅ **Props and state** - Component parameters and local state
-- ✅ **Event handlers** - Click handlers and DOM events  
-- ❌ **Generator components** - `for _ in ctx:` and `yield` patterns fail due to MicroPython's iterator/JavaScript interop limitations
-- ❌ **Complex iteration** - Generator-based patterns are not supported
+### MicroPython (Compatible)
+- **Basic components** - Simple `return` style components work perfectly
+- **Props and state** - Component parameters and local state
+- **Event handlers** - Click handlers and DOM events
+- **Generator components** - `for _ in ctx:` and `yield` patterns work with JavaScript-based workarounds
+- **Context iteration** - Component lifecycle and props updates supported
+- **Performance overhead** - Uses JavaScript eval workarounds for Symbol.iterator compatibility
 
-**Note**: MicroPython's generator implementation in PyScript environments has fundamental compatibility issues with JavaScript's iteration protocol (`Symbol.iterator`), preventing the use of Crank's core generator-based component pattern.
+**Note**: MicroPython has fundamental Symbol.iterator compatibility issues that we work around using JavaScript-based implementations for `dir()`, `dict()`, and generator iteration. These workarounds are automatically applied when `sys.implementation.name == 'micropython'` without affecting Pyodide performance.
 
-**Recommendation**: Use **Pyodide for production applications**. MicroPython support is experimental and best suited for simple components or learning purposes.
+**Recommendation**: **Pyodide for production applications**, **MicroPython for lightweight deployments** where bundle size matters.
 
 ### Example: Cross-Runtime Component
 
 ```python
-# ✅ Works in both Pyodide and MicroPython
+# Works in both Pyodide and MicroPython
 @component
 def SimpleGreeting(ctx, props):
     name = props.get("name", "World")
     return h.div[f"Hello, {name}!"]
 
-# ✅ Pyodide only - generator pattern
+# Works in both Pyodide and MicroPython (with JS workarounds)
 @component  
 def InteractiveCounter(ctx):
     count = 0
@@ -1026,12 +1027,95 @@ def InteractiveCounter(ctx):
         nonlocal count
         count += 1
     
-    for _ in ctx:  # ❌ MicroPython limitation
+    for _ in ctx:
         yield h.div[
             h.h1[f"Count: {count}"],
-            h.button(onClick=increment)["+"]
+            h.button(onclick=increment)["+"]
+        ]
+
+# Advanced generator patterns work in both runtimes
+@component
+def TodoApp(ctx, props):
+    todos = []
+    
+    @ctx.refresh 
+    def add_todo(text):
+        nonlocal todos
+        todos.append({"text": text, "done": False})
+    
+    for props in ctx:
+        yield h.div[
+            h.ul[[h.li[todo["text"]] for todo in todos]],
+            h.button(onclick=lambda: add_todo("New item"))["Add Todo"]
         ]
 ```
+
+### MicroPython Compatibility Implementation
+
+Crank.py achieves MicroPython compatibility through automatic runtime detection and JavaScript-based workarounds:
+
+#### Technical Challenges Solved
+- **Symbol.iterator identity inconsistency** - MicroPython returns different objects on each `Symbol.iterator` access
+- **Generator iteration failures** - `js_get_iter` function fails when iterating over Python generators in JavaScript
+- **dict() constructor limitations** - Converting JsProxy objects to Python dicts triggers Symbol.iterator bugs
+- **dir() function failures** - Introspecting JavaScript objects fails with the same iterator issues
+
+#### Our Solutions
+```python
+# Automatic runtime detection with zero performance impact on Pyodide
+if sys.implementation.name == 'micropython':
+    # Use JavaScript-based object enumeration instead of dir()
+    js_code = """
+    (function(jsObj) {
+        const props = [];
+        for (const key in jsObj) {
+            if (typeof key === 'string' && !key.startsWith('_')) {
+                props.push(key);
+            }
+        }
+        return props;
+    })
+    """
+    get_props = js_eval(js_code)
+    attrs = get_props(js_context)
+else:
+    # Pyodide: use fast native Python dir()
+    attrs = [attr for attr in dir(js_context) 
+             if isinstance(attr, str) and not attr.startswith('_')]
+```
+
+#### SymbolIteratorWrapper for Generator Components
+```python
+class SymbolIteratorWrapper:
+    def __init__(self, python_generator):
+        self.python_generator = python_generator
+    
+    def __getitem__(self, key):
+        # JavaScript-based Symbol.iterator implementation
+        js_code = """
+        (function(pythonKey, pythonGen) {
+            if (pythonKey === Symbol.iterator) {
+                return function() {
+                    return {
+                        next: function() {
+                            try {
+                                const value = pythonGen.__next__();
+                                return { value: value, done: false };
+                            } catch (e) {
+                                return { value: undefined, done: true };
+                            }
+                        }
+                    };
+                };
+            }
+            throw new Error('SymbolIteratorWrapper: Not Symbol.iterator');
+        })
+        """
+        js_func = js_eval(js_code)
+        return js_func(key, self.python_generator)
+```
+
+These workarounds enable full generator component support in MicroPython while maintaining optimal performance in Pyodide.
 
 ## Learn More
 

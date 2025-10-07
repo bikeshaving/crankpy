@@ -15,8 +15,8 @@ def test_error_handling_specificity(page: Page):
 <head>
     <meta charset="UTF-8">
     <title>Error Handling Test</title>
-    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
-    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+    <link rel="stylesheet" href="/tests/pyscript/core.css">
+    <script type="module" src="/tests/pyscript/core.js"></script>
 </head>
 <body>
     <h1>Error Handling Test</h1>
