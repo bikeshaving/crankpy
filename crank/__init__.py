@@ -250,10 +250,14 @@ class Context(_ContextBase):
             return result
 
         # Preserve function metadata (safely for MicroPython compatibility)
-        if hasattr(func, '__name__'):
+        try:
             wrapper.__name__ = func.__name__
-        if hasattr(func, '__doc__'):
+        except AttributeError:
+            pass  # MicroPython closures may not have __name__
+        try:
             wrapper.__doc__ = func.__doc__
+        except AttributeError:
+            pass  # MicroPython closures may not have __doc__
         return wrapper
 
     def schedule(self, func):
@@ -503,9 +507,22 @@ class SymbolIteratorWrapper:
     
     async def __anext__(self):
         """Make this a proper Python async iterator"""
-        return await self.python_generator.__anext__()
+        if hasattr(self.python_generator, '__anext__'):
+            try:
+                from js import console
+                console.log(f"SymbolIteratorWrapper.__anext__: About to call __anext__ on {type(self.python_generator)}")
+                result = await self.python_generator.__anext__()
+                console.log(f"SymbolIteratorWrapper.__anext__: Got result: {result}")
+                return result
+            except Exception as e:
+                from js import console
+                console.error(f"SymbolIteratorWrapper.__anext__: Error: {e}")
+                raise
+        else:
+            # Sync generator wrapped as async - should not happen normally
+            raise StopAsyncIteration("Sync generator cannot be async iterated")
     
-    def next(self):
+    def next(self, value=None):
         """JavaScript-style next method"""
         try:
             # Handle both sync and async generators
@@ -515,8 +532,12 @@ class SymbolIteratorWrapper:
                 # as they should use Symbol.asyncIterator path
                 raise StopIteration("Sync next() called on async generator")
             else:
-                value = next(self.python_generator)
-                return {"value": value, "done": False}
+                # Use send() if we have a value, otherwise use next()
+                if value is not None and hasattr(self.python_generator, 'send'):
+                    result = self.python_generator.send(value)
+                else:
+                    result = next(self.python_generator)
+                return {"value": result, "done": False}
         except StopIteration:
             return {"value": None, "done": True}
     
@@ -593,7 +614,7 @@ def component(func: Callable) -> Callable:
         # Validate parameter count - Crank components can have 0, 1, or 2 parameters
         if param_count > 2:
             raise ValueError(
-                f"Component function {func.__name__} has incompatible signature. "
+                f"Component function {getattr(func, '__name__', '<anonymous>')} has incompatible signature. "
                 f"Expected 0, 1 (ctx), or 2 (ctx, props) parameters."
             )
     except AttributeError:
@@ -647,11 +668,54 @@ def component(func: Callable) -> Callable:
                 return result
             
             # Check if we're in MicroPython and result needs wrapping
-            if (sys.implementation.name == 'micropython' and 
-                (hasattr(result, 'send') or hasattr(result, '__next__') or 
-                 hasattr(result, 'asend') or hasattr(result, '__anext__'))):
-                # Use Symbol.iterator mapping instead of JavaScript helper
-                return SymbolIteratorWrapper(result)
+            if sys.implementation.name == 'micropython':
+                # CRITICAL FIX: Check for async function generators that need Promise conversion
+                # These are generators from async functions (not async generators)  
+                if (hasattr(result, '__next__') and hasattr(result, 'send') and 
+                    hasattr(result, 'throw') and not hasattr(result, '__anext__')):
+                    
+                    # MicroPython doesn't expose code object flags, so use runtime detection
+                    # Try to determine if this is an async function generator by testing if we can await it
+                    try:
+                        from js import Promise
+                        
+                        def promise_executor(resolve, reject):
+                            async def test_and_run():
+                                try:
+                                    # Try to await the generator - this will work for async functions
+                                    # but fail for sync generators  
+                                    final_result = await result
+                                    resolve(final_result)
+                                except Exception as e:
+                                    # If await fails, it might be a sync generator - let normal wrapping handle it
+                                    error_str = str(e).lower()
+                                    if 'coroutine' in error_str or 'await' in error_str:
+                                        # This suggests it's actually async-related
+                                        reject(str(e))
+                                    else:
+                                        # Probably a sync generator - reject so we fall back to normal handling
+                                        reject("Not async generator")
+                            
+                            # Start the async test
+                            import asyncio
+                            asyncio.create_task(test_and_run())
+                        
+                        # Always try Promise conversion for generators that might be async
+                        # If it fails, Crank.js will handle the rejection gracefully
+                        return Promise.new(promise_executor)
+                    except (ImportError, Exception):
+                        # Fallback if Promise creation fails - treat as regular generator
+                        pass
+                
+                # Check for async generators (have __anext__)
+                if hasattr(result, '__anext__'):
+                    return SymbolIteratorWrapper(result)
+                # Check for sync generators (have __next__ but not __anext__)
+                elif hasattr(result, '__next__') and not hasattr(result, '__anext__'):
+                    return SymbolIteratorWrapper(result)
+                # Check for generator-like objects (have send method)
+                elif hasattr(result, 'send') and not hasattr(result, '__anext__'):
+                    return SymbolIteratorWrapper(result)
             return result
 
         # Check if we have cached parameter count
@@ -699,7 +763,7 @@ def component(func: Callable) -> Callable:
 
             # If we get here, none of the parameter counts worked
             raise ValueError(
-                f"Component function {func.__name__} has incompatible signature. "
+                f"Component function {getattr(func, '__name__', '<anonymous>')} has incompatible signature. "
                 f"Expected 0, 1 (ctx), or 2 (ctx, props) parameters."
             )
 

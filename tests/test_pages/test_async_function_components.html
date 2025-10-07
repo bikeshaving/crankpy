@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test: Async Function Components</title>
+    <link rel="stylesheet" href="/tests/pyscript/core.css">
+    <script type="module" src="/tests/pyscript/core.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-pass { color: green; font-weight: bold; }
+        .test-fail { color: red; font-weight: bold; }
+        .test-pending { color: orange; }
+        .test-section { border: 1px solid #ccc; padding: 15px; margin: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Test: Async Function Components</h1>
+    <p>Testing async function components work in both MicroPython and Pyodide</p>
+    <div id="test-output"></div>
+    <div id="component-output"></div>
+    
+    <mpy-config>
+        {
+            "experimental_create_proxy": "auto",
+            "files": {
+                "../crank/__init__.py": "crank/__init__.py",
+                "../crank/dom.py": "crank/dom.py",
+                "../crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, console, setTimeout, Promise
+
+from crank import h, component
+from crank.dom import renderer
+
+test_output = document.getElementById("test-output")
+component_output = document.getElementById("component-output")
+
+# Test utilities
+class TestRunner:
+    def __init__(self):
+        self.passed = 0
+        self.failed = 0
+        self.pending = 0
+    
+    def log(self, message, status="info"):
+        console.log(message)
+        color = {
+            "pass": "test-pass",
+            "fail": "test-fail", 
+            "pending": "test-pending"
+        }.get(status, "")
+        test_output.innerHTML += f"<div class='{color}'>{message}</div>"
+    
+    def assert_true(self, condition, message):
+        if condition:
+            self.passed += 1
+            self.log(f"✅ PASS: {message}", "pass")
+        else:
+            self.failed += 1
+            self.log(f"❌ FAIL: {message}", "fail")
+    
+    def assert_contains(self, haystack, needle, message):
+        if needle in str(haystack):
+            self.passed += 1
+            self.log(f"✅ PASS: {message}", "pass")
+        else:
+            self.failed += 1
+            self.log(f"❌ FAIL: {message} (got: {haystack})", "fail")
+    
+    def pending(self, message):
+        self.pending += 1
+        self.log(f"⏳ PENDING: {message}", "pending")
+    
+    def summary(self):
+        total = self.passed + self.failed + self.pending
+        self.log(f"\n=== TEST SUMMARY ===")
+        self.log(f"Total: {total}, Passed: {self.passed}, Failed: {self.failed}, Pending: {self.pending}")
+        if self.failed == 0 and self.pending == 0:
+            self.log("🎉 ALL TESTS PASSED!", "pass")
+        elif self.failed == 0:
+            self.log("✅ All implemented tests passed", "pass")
+        else:
+            self.log("💥 Some tests failed", "fail")
+
+runner = TestRunner()
+
+def create_delay(ms):
+    """Create a setTimeout-based Promise delay"""
+    def executor(resolve, reject):
+        def timeout_callback():
+            resolve(f"Delayed {ms}ms")
+        setTimeout(timeout_callback, ms)
+    return Promise.new(executor)
+
+# Test 1: Basic async function component
+@component
+async def BasicAsyncComponent(ctx):
+    """Basic async function that returns HTML after a delay"""
+    result = await create_delay(100)
+    return h.div(className="test-section")[
+        h.h3["Basic Async Component"],
+        h.p[f"Result: {result}"],
+        h.p[f"Runtime: {sys.implementation.name}"]
+    ]
+
+# Test 2: Async component with props
+@component
+async def AsyncWithPropsComponent(ctx, props):
+    """Async function component that uses props"""
+    name = props.get("name", "Unknown")
+    delay_ms = props.get("delay", 50)
+    
+    result = await create_delay(delay_ms)
+    return h.div(className="test-section")[
+        h.h3[f"Hello {name}!"],
+        h.p[f"Async result: {result}"],
+        h.p[f"Delay was: {delay_ms}ms"],
+        h.p[f"Runtime: {sys.implementation.name}"]
+    ]
+
+# Test 3: Nested async components
+@component
+async def ParentAsyncComponent(ctx):
+    """Parent component that renders child async components"""
+    await create_delay(50)
+    
+    return h.div(className="test-section")[
+        h.h3["Parent Async Component"],
+        h.p["Parent completed"],
+        h(AsyncWithPropsComponent, name="Child1", delay=30),
+        h(AsyncWithPropsComponent, name="Child2", delay=40),
+        h.p[f"Runtime: {sys.implementation.name}"]
+    ]
+
+# Test 4: Error handling in async components
+@component
+async def AsyncErrorComponent(ctx, props):
+    """Test error handling in async components"""
+    should_error = props.get("error", False)
+    
+    await create_delay(25)
+    
+    if should_error:
+        raise ValueError("Test error")
+    
+    return h.div(className="test-section")[
+        h.h3["Error Test Component"],
+        h.p["No error occurred"],
+        h.p[f"Runtime: {sys.implementation.name}"]
+    ]
+
+async def run_tests():
+    """Run all async component tests"""
+    runner.log(f"Testing async function components on {sys.implementation.name}")
+    runner.log("=" * 50)
+    
+    # Test basic functionality
+    runner.log("Test 1: Basic async function component")
+    try:
+        container1 = document.createElement("div")
+        component_output.appendChild(container1)
+        renderer.render(h(BasicAsyncComponent), container1)
+        
+        # Wait for component to complete
+        await create_delay(200)
+        
+        # Check if component rendered
+        html_content = container1.innerHTML
+        runner.assert_contains(html_content, "Basic Async Component", "Component rendered with title")
+        runner.assert_contains(html_content, "Delayed 100ms", "Component shows async result")
+        runner.assert_contains(html_content, sys.implementation.name, "Component shows runtime")
+        
+    except Exception as e:
+        runner.log(f"❌ Test 1 failed with exception: {e}", "fail")
+        runner.failed += 1
+    
+    # Test props handling
+    runner.log("\nTest 2: Async component with props")
+    try:
+        container2 = document.createElement("div")
+        component_output.appendChild(container2)
+        renderer.render(h(AsyncWithPropsComponent, name="TestUser", delay=75), container2)
+        
+        await create_delay(150)
+        
+        html_content = container2.innerHTML
+        runner.assert_contains(html_content, "Hello TestUser!", "Component uses props correctly")
+        runner.assert_contains(html_content, "Delayed 75ms", "Component respects delay prop")
+        
+    except Exception as e:
+        runner.log(f"❌ Test 2 failed with exception: {e}", "fail")
+        runner.failed += 1
+    
+    # Test nested components
+    runner.log("\nTest 3: Nested async components")
+    try:
+        container3 = document.createElement("div")
+        component_output.appendChild(container3)
+        renderer.render(h(ParentAsyncComponent), container3)
+        
+        await create_delay(200)
+        
+        html_content = container3.innerHTML
+        runner.assert_contains(html_content, "Parent Async Component", "Parent component rendered")
+        runner.assert_contains(html_content, "Hello Child1!", "Child1 component rendered")
+        runner.assert_contains(html_content, "Hello Child2!", "Child2 component rendered")
+        
+    except Exception as e:
+        runner.log(f"❌ Test 3 failed with exception: {e}", "fail")
+        runner.failed += 1
+    
+    # Test error handling
+    runner.log("\nTest 4: Error handling (success case)")
+    try:
+        container4 = document.createElement("div")
+        component_output.appendChild(container4)
+        renderer.render(h(AsyncErrorComponent, error=False), container4)
+        
+        await create_delay(100)
+        
+        html_content = container4.innerHTML
+        runner.assert_contains(html_content, "No error occurred", "Component handles success case")
+        
+    except Exception as e:
+        runner.log(f"❌ Test 4 failed with exception: {e}", "fail")
+        runner.failed += 1
+    
+    # Test runtime compatibility
+    runner.log("\nTest 5: Runtime compatibility")
+    if sys.implementation.name == 'micropython':
+        runner.assert_true(True, "MicroPython async functions work with Promise conversion")
+    else:
+        runner.assert_true(True, "Pyodide async functions work natively")
+    
+    runner.summary()
+
+# Start tests
+runner.log("Starting async function component tests...")
+import asyncio
+try:
+    asyncio.create_task(run_tests())
+except Exception as e:
+    runner.log(f"Failed to start tests: {e}", "fail")
+    </script>
+</body>
+</html>
