@@ -8,11 +8,20 @@ help:  ## Show this help message
 test:  ## Run all tests (unit + integration)
 	uv run python -m pytest -v
 
-test-unit:  ## Run unit tests only
-	uv run python -m pytest tests/test_crank.py -v
+test-unit:  ## Run unit tests only  
+	uv run python -m pytest tests/test_crank.py tests/test_refs.py tests/test_types.py -v
 
 test-integration:  ## Run Playwright integration tests
 	uv run python -m pytest tests/test_integration.py -v
+
+test-micropython:  ## Run MicroPython compatibility tests
+	uv run python -m pytest tests/test_micropython_compatibility.py tests/test_error_handling.py -v
+
+test-package:  ## Run package-based integration tests  
+	uv build && uv run python -m pytest tests/test_package_integration.py -v
+
+test-dev-setup:  ## Install package in development mode for testing
+	uv pip install -e .
 
 test-main:  ## Run main test suite (alias for test-unit)
 	uv run python -m pytest tests/test_crank.py -v
