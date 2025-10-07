@@ -1,0 +1,30 @@
+{
+  "name": "crankpy",
+  "version": "1.0.0",
+  "description": "Modern components for Python frontend development.",
+  "main": "index.js",
+  "directories": {
+    "example": "examples",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bikeshaving/crank-py.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/bikeshaving/crank-py/issues"
+  },
+  "homepage": "https://github.com/bikeshaving/crank-py#readme",
+  "dependencies": {
+    "@micropython/micropython-webassembly-pyscript": "^1.27.0-preview-283",
+    "@pyscript/core": "^0.7.1",
+    "pyodide": "^0.28.3"
+  }
+}
