@@ -318,11 +318,11 @@ except Exception as e:
     with open(test_file_path, "w") as f:
         f.write(test_html)
 
-    # Navigate to the test page
-    page.goto(f"file://{os.path.abspath(test_file_path)}")
+    # Navigate to the test page via HTTP server (like other tests)
+    page.goto("http://localhost:3333/test_comparison.html")
 
     # Wait for both PyScript engines to load
-    page.wait_for_timeout(10000)
+    page.wait_for_timeout(15000)
 
     # Check that both sections have output
     expect(page.locator("#mpy-output").locator("text=Implementation:")).to_be_visible()

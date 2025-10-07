@@ -28,18 +28,18 @@
         try:
             # Test main imports
             from crank import h, component, Element, Fragment, Portal, Copy, Raw, Text
-            output.innerHTML += "<div data-testid='main-imports'>✅ Main imports successful</div>"
+            output.innerHTML += '<div data-testid="main-imports">✅ Main imports successful</div>'
             
             # Test dom imports
             from crank.dom import renderer
-            output.innerHTML += "<div data-testid='dom-imports'>✅ DOM imports successful</div>"
+            output.innerHTML += '<div data-testid="dom-imports">✅ DOM imports successful</div>'
             
             # Test typing imports work (should fallback gracefully)
             try:
                 from crank import Props, Children
-                output.innerHTML += "<div data-testid='typing-imports'>✅ Typing imports successful</div>"
+                output.innerHTML += '<div data-testid="typing-imports">✅ Typing imports successful</div>'
             except Exception as e:
-                output.innerHTML += f"<div data-testid='typing-imports'>⚠️ Typing imports failed: {e}</div>"
+                output.innerHTML += f'<div data-testid="typing-imports">⚠️ Typing imports failed: {e}</div>'
                 
             # Test component creation
             @component
@@ -47,10 +47,10 @@
                 for _ in ctx:
                     yield h.div["Test successful!"]
             
-            output.innerHTML += "<div data-testid='component-creation'>✅ Component creation successful</div>"
+            output.innerHTML += '<div data-testid="component-creation">✅ Component creation successful</div>'
             
         except Exception as e:
-            output.innerHTML += f"<div data-testid='import-error'>❌ Import failed: {e}</div>"
+            output.innerHTML += f'<div data-testid="import-error">❌ Import failed: {e}</div>'
     </py-script>
 </body>
 </html>

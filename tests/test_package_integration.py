@@ -56,18 +56,18 @@ class TestPackageIntegration:
         try:
             # Test main imports
             from crank import h, component, Element, Fragment, Portal, Copy, Raw, Text
-            output.innerHTML += "<div data-testid='main-imports'>✅ Main imports successful</div>"
+            output.innerHTML += '<div data-testid="main-imports">✅ Main imports successful</div>'
             
             # Test dom imports
             from crank.dom import renderer
-            output.innerHTML += "<div data-testid='dom-imports'>✅ DOM imports successful</div>"
+            output.innerHTML += '<div data-testid="dom-imports">✅ DOM imports successful</div>'
             
             # Test typing imports work (should fallback gracefully)
             try:
                 from crank import Props, Children
-                output.innerHTML += "<div data-testid='typing-imports'>✅ Typing imports successful</div>"
+                output.innerHTML += '<div data-testid="typing-imports">✅ Typing imports successful</div>'
             except Exception as e:
-                output.innerHTML += f"<div data-testid='typing-imports'>⚠️ Typing imports failed: {e}</div>"
+                output.innerHTML += f'<div data-testid="typing-imports">⚠️ Typing imports failed: {e}</div>'
                 
             # Test component creation
             @component
@@ -75,10 +75,10 @@ class TestPackageIntegration:
                 for _ in ctx:
                     yield h.div["Test successful!"]
             
-            output.innerHTML += "<div data-testid='component-creation'>✅ Component creation successful</div>"
+            output.innerHTML += '<div data-testid="component-creation">✅ Component creation successful</div>'
             
         except Exception as e:
-            output.innerHTML += f"<div data-testid='import-error'>❌ Import failed: {e}</div>"
+            output.innerHTML += f'<div data-testid="import-error">❌ Import failed: {e}</div>'
     </py-script>
 </body>
 </html>"""
@@ -104,10 +104,10 @@ class TestPackageIntegration:
             import pytest
             pytest.fail(f"Package imports failed. Output: {output_text}")
 
-        # Check all imports worked
-        expect(page.locator("[data-testid='main-imports']")).to_contain_text("✅ Main imports successful")
-        expect(page.locator("[data-testid='dom-imports']")).to_contain_text("✅ DOM imports successful")
-        expect(page.locator("[data-testid='component-creation']")).to_contain_text("✅ Component creation successful")
+        # Check all imports worked (use partial text match to handle Unicode encoding differences)
+        expect(page.locator("[data-testid='main-imports']")).to_contain_text("Main imports successful")
+        expect(page.locator("[data-testid='dom-imports']")).to_contain_text("DOM imports successful")
+        expect(page.locator("[data-testid='component-creation']")).to_contain_text("Component creation successful")
 
         # Clean up
         os.remove(test_file_path)
