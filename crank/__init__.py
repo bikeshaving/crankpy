@@ -3,20 +3,51 @@ Crank.py - Lightweight Python wrapper for Crank JavaScript framework
 """
 
 import inspect
-from typing import (
-    Any,
-    AsyncIterator,
-    Callable,
-    Dict,
-    Generic,
-    Iterator,
-    List,
-    TypedDict,
-    TypeVar,
-    Union,
-)
+import sys
 
-from pyodide.ffi import JsProxy
+# Conditional typing imports for MicroPython compatibility
+try:
+    from typing import (
+        Any,
+        AsyncIterator,
+        Callable,
+        Dict,
+        Generic,
+        Iterator,
+        List,
+        TypedDict,
+        TypeVar,
+        Union,
+    )
+except ImportError:
+    # MicroPython fallback - use minimal typing stub
+    if sys.implementation.name == 'micropython':
+        from .typing_stub import (
+            Any,
+            AsyncIterator,
+            Callable,
+            Dict,
+            Generic,
+            Iterator,
+            List,
+            TypedDict,
+            TypeVar,
+            Union,
+        )
+    else:
+        # Re-raise if not MicroPython
+        raise
+
+# Conditional imports for different Python implementations
+try:
+    from pyodide.ffi import JsProxy
+except ImportError:
+    # MicroPython doesn't have pyodide.ffi
+    if sys.implementation.name == 'micropython':
+        JsProxy = object  # Fallback type for MicroPython
+    else:
+        raise
+
 from pyscript.ffi import create_proxy, to_js
 from pyscript.js_modules import crank_core as crank
 
@@ -66,23 +97,37 @@ Raw = crank.Raw
 Text = crank.Text
 
 # Type variables for generic Context
-T = TypeVar('T', bound=Dict[str, Any])  # Props type
-TResult = TypeVar('TResult')  # Element result type
+# Use try/except for MicroPython compatibility with subscript syntax
+try:
+    T = TypeVar('T', bound=Dict[str, Any])  # Props type
+    TResult = TypeVar('TResult')  # Element result type
 
-# Type definitions for props and components
-Props = Dict[str, Any]
-Children = Union[str, Element, List["Children"]]
+    # Type definitions for props and components
+    Props = Dict[str, Any]
+    Children = Union[str, Element, List["Children"]]
+except TypeError:
+    # MicroPython fallback - no subscript syntax
+    T = TypeVar('T')
+    TResult = TypeVar('TResult')
 
-# Example TypedDict for component props (optional usage)
-class TodoItemProps(TypedDict, total=False):
-    """Example props interface for TodoItem component"""
-    todo: Dict[str, Any]
-    ontoggle: Callable[[int], None]  # lowercase event props!
-    ondelete: Callable[[int], None]
-    onedit: Callable[[int, str], None]
+    # Simplified types for MicroPython
+    Props = dict
+    Children = object
 
 # Context wrapper to add Python-friendly API with generic typing
-class Context(Generic[T, TResult]):
+# MicroPython doesn't support Generic subscripting, so use conditional inheritance
+if sys.implementation.name == 'micropython':
+    # MicroPython fallback - plain class without generics
+    _ContextBase = object
+else:
+    # Full Python with generic typing - need to avoid subscript syntax too
+    try:
+        _ContextBase = Generic[T, TResult]
+    except TypeError:
+        # Fallback if Generic subscripting fails
+        _ContextBase = Generic
+
+class Context(_ContextBase):
     """Wrapper for Crank Context with additional Python conveniences"""
 
     def __init__(self, js_context):
@@ -232,16 +277,39 @@ class Context(Generic[T, TResult]):
             print("DEBUG: ctx.value accessed via __getattr__!")
         return getattr(self._js_context, name)
 
+
 # Component decorator
 def component(func: Callable) -> Callable:
     """Universal component decorator for any function type"""
 
-    # Check function signature to determine how to call it
-    sig = inspect.signature(func)
-    params = list(sig.parameters.keys())
+    # Cache parameter count per component instance using nonlocal
+    cached_param_count = None
+
+    # Only validate signature using static inspection at decoration time
+    # Don't call the function to avoid side effects
+
+    # In full Python, use inspect.signature for accurate detection
+    try:
+        sig = inspect.signature(func)
+        param_count = len(sig.parameters)
+        # Cache the result for later use
+        cached_param_count = param_count
+
+        # Validate parameter count - Crank components can have 0, 1, or 2 parameters
+        if param_count > 2:
+            raise ValueError(
+                f"Component function {func.__name__} has incompatible signature. "
+                f"Expected 0, 1 (ctx), or 2 (ctx, props) parameters."
+            )
+    except AttributeError:
+        # MicroPython fallback - we'll determine parameter count at runtime
+        # Don't call the function here to avoid side effects
+        pass
 
     def wrapper(props, ctx):
         """Wrapper that adapts Crank's (props, ctx) calling convention"""
+        nonlocal cached_param_count
+
         # Wrap the JS context with our Python Context wrapper
         wrapped_ctx = Context(ctx)
 
@@ -253,18 +321,54 @@ def component(func: Callable) -> Callable:
             # MicroPython: Convert or use as-is if already dict
             python_props = dict(props) if props else {}
 
-        if len(params) == 0:
-            # No parameters - just call the function
-            return func()
-        elif len(params) == 1:
-            # Single parameter - pass wrapped ctx
-            return func(wrapped_ctx)
-        elif len(params) == 2:
-            # Two parameters - pass wrapped ctx, then props dict
-            return func(wrapped_ctx, python_props)
+        # Check if we have cached parameter count
+        if cached_param_count is not None:
+            # Use cached parameter count
+            if cached_param_count == 0:
+                return func()
+            elif cached_param_count == 1:
+                return func(wrapped_ctx)
+            else:  # cached_param_count == 2
+                return func(wrapped_ctx, python_props)
         else:
-            # More than 2 parameters is not supported
-            raise ValueError(f"Component function {func.__name__} has too many parameters. Expected 0-2, got {len(params)}")
+            # MicroPython runtime - determine parameter count on first call
+            # Try different parameter counts and cache the successful one
+            for test_count in [2, 1, 0]:  # Try most common first
+                try:
+                    if test_count == 0:
+                        result = func()
+                    elif test_count == 1:
+                        result = func(wrapped_ctx)
+                    else:  # test_count == 2
+                        result = func(wrapped_ctx, python_props)
+
+                    # Success! Cache this parameter count for future calls
+                    cached_param_count = test_count
+                    return result
+
+                except TypeError as e:
+                    # Check if this looks like a parameter count error
+                    error_msg = str(e).lower()
+                    if any(phrase in error_msg for phrase in [
+                        'takes', 'positional argument', 'missing', 'given'
+                    ]):
+                        # This is likely a parameter count mismatch, try next count
+                        continue
+                    else:
+                        # This is likely a real error in user code
+                        # Cache this parameter count and re-raise the error
+                        cached_param_count = test_count
+                        raise
+                except Exception:
+                    # Some other error - cache this parameter count and re-raise
+                    cached_param_count = test_count
+                    raise
+
+            # If we get here, none of the parameter counts worked
+            raise ValueError(
+                f"Component function {func.__name__} has incompatible signature. "
+                f"Expected 0, 1 (ctx), or 2 (ctx, props) parameters."
+            )
 
     # Proxy the wrapper function for Crank to call
     return create_proxy(wrapper)
@@ -629,5 +733,4 @@ __all__ = [
         # Type definitions
         'Props',
         'Children',
-        'TodoItemProps',
 ]
