@@ -84,16 +84,20 @@ def Counter(ctx):
 
 ```python
 @component
-def UserProfile(ctx, props):
+async def UserProfile(ctx, props):
+    old_user_id = None
     for props in ctx:  # Props automatically update!
         user_id = props.user_id
-        user = fetch_user(user_id)  # Fetches when props change
-
-        yield h.div[
-            h.img(src=user.avatar),
-            h.h2[user.name],
-            h.p[user.bio]
-        ]
+        if user_id != old_user_id:
+            user = await fetch_user(user_id)  # Fetches when props change
+            yield h.div[
+                h.img(src=user.avatar),
+                h.h2[user.name],
+                h.p[user.bio]
+            ]
+        else:
+            yield h(Copy)
+        old_user_id = user_id
 
 # Usage
 h(UserProfile, user_id=123)
@@ -110,9 +114,13 @@ Crank.py uses a clean, Pythonic hyperscript syntax:
 h.div["Hello World"]
 h.p["Some text"]
 
-# With properties
+# With props
 h.input(type="text", value=text)
 h.div(className="my-class")["Content"]
+
+# No props or children
+h.hr()
+h.br()
 
 # Snake_case → kebab-case conversion
 h.div(
@@ -618,7 +626,7 @@ def VideoPlayer(ctx):
 **Ref Patterns:**
 - Refs fire once when elements are first rendered
 - Don't work on fragments - use on host elements only
-- For components, explicitly pass `ref` to child elements
+- For components, explicitly pass `ref` prop to child elements, or call it yourself
 - Useful for focus management, DOM measurements, third-party integrations
 
 ```python
@@ -748,32 +756,33 @@ def ExpensiveList(ctx, props):
 
 # Copy with string selectors (Crank 0.7+)
 @component
-def SmartForm(ctx, props):
-    for props in ctx:
-        yield h.form[
-            # Copy all props except value (keeps input uncontrolled)
-            h.input(
-                copy="!value",
-                type="text",
-                placeholder="Enter text...",
-                name="username"
-            ),
+def SmartForm():
+    return h.form[
+        # Copy all props except value (keeps input uncontrolled)
+        h.input(
+            copy="!value",
+            type="text",
+            placeholder="Enter text...",
+            name="username"
+            value=props["value"]
+        ),
 
-            # Copy only specific props
-            h.div(
-                copy="class id",
-                className="form-section",
-                id="user-info",
-                data_updated=props.get("timestamp")
-            )[
-                h.label["Username"]
-            ],
+        # Copy only specific props
+        h.div(
+            copy="class id",
+            className="form-section",
+            id="user-info",
+            data_updated=props.get("timestamp")
+        )[
+            h.label["Username"]
+        ],
 
-            # Copy children from previous render
-            h.div(copy="children", className="dynamic")[
-                # Children preserved from last render
-            ]
+        # Copy children from previous render
+        h.div(copy="children", className="dynamic")[
+            # Children preserved from last render
+            props["children"]
         ]
+    ]
 ```
 
 **Copy Prop Syntax:**
@@ -872,30 +881,20 @@ def App(ctx):
 def TextManipulator(ctx):
     text_node = None
 
-    def set_text_ref(el):
+    def set_text_ref(text):
         nonlocal text_node
-        text_node = el
+        text_node = text
 
     @ctx.refresh
     def update_text():
         if text_node:
-            text_node.textContent = "Updated directly!"
+            text_node.data = "Updated directly!"
 
     for _ in ctx:
         yield h.div[
             h(Text, value="Original text", ref=set_text_ref),
             h.button(onclick=update_text)["Update Text"]
         ]
-
-# Multiple separate text nodes (no concatenation)
-@component
-def FormattedText(ctx, props):
-    for props in ctx:
-        yield h.p[
-            h(Text, value="Hello "),
-            h(Text, value=props["name"]),
-            h(Text, value="!")
-        ]  # Creates 3 separate Text nodes
 ```
 
 #### Copy - Prevent Subtree Re-rendering
@@ -970,8 +969,12 @@ def OptimizedList(ctx, props):
 def SmartComponent(ctx, props):
     for props in ctx:
         yield h.div[
-            # Only re-render when content changes, preserve styling
-            h.div(copy="class style")[
+            # Only re-renders children, does not touch class style
+            h.div(
+                className=props["className"],
+                style=props["style"],
+                copy="class style"
+            )[
                 props["dynamicContent"]
             ],
 
