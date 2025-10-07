@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Context Iteration Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/dom.py": "crank/dom.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Symbol, Object
+from pyscript.ffi import create_proxy
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    # Test the Context iteration issue specifically
+    from crank import Context, component, h
+    
+    log_result("Step 1: Testing Context object iteration...")
+    
+    # Create a mock JavaScript context like Crank would
+    mock_js_ctx = Object.new()
+    
+    # Wrap it in our Python Context
+    python_ctx = Context(mock_js_ctx)
+    log_result(f"Python context created: {type(python_ctx)}")
+    
+    # Test direct iteration over the context
+    log_result("Step 2: Testing direct context iteration...")
+    
+    try:
+        log_result("  Attempting: for item in python_ctx:")
+        count = 0
+        for item in python_ctx:
+            log_result(f"  Context iteration {count}: {item}")
+            count += 1
+            if count > 3:  # Prevent infinite loop
+                log_result("  Breaking to prevent infinite loop")
+                break
+        log_result("✅ Direct context iteration succeeded")
+    except Exception as e:
+        log_result(f"❌ Direct context iteration failed: {e}")
+    
+    # Test the specific component pattern
+    log_result("Step 3: Testing component pattern without generator...")
+    
+    @component
+    def SimpleComponent(ctx):
+        log_result("  SimpleComponent: called")
+        # Don't use generator - just return directly
+        return h.div["Simple component"]
+    
+    log_result("Simple component defined")
+    
+    # Test calling simple component
+    mock_props = Object.new()
+    result1 = SimpleComponent(mock_props, mock_js_ctx)
+    log_result(f"✅ Simple component result: {type(result1)}")
+    
+    # Test the problematic generator pattern
+    log_result("Step 4: Testing generator component pattern...")
+    
+    @component
+    def GeneratorComponent(ctx):
+        log_result("  GeneratorComponent: called")
+        log_result("  GeneratorComponent: about to iterate over ctx")
+        
+        # This is the line that might be causing the issue
+        for props in ctx:
+            log_result("  GeneratorComponent: in context loop")
+            yield h.div["Generator component"]
+            log_result("  GeneratorComponent: after yield")
+            break  # Only do one iteration
+    
+    log_result("Generator component defined")
+    
+    # Test calling generator component
+    log_result("  Calling GeneratorComponent...")
+    try:
+        result2 = GeneratorComponent(mock_props, mock_js_ctx)
+        log_result(f"✅ Generator component succeeded: {type(result2)}")
+    except Exception as e:
+        log_result(f"❌ Generator component failed: {e}")
+    
+    # Test alternative: without context iteration
+    log_result("Step 5: Testing generator without context iteration...")
+    
+    @component
+    def NoContextComponent(ctx):
+        log_result("  NoContextComponent: called")
+        # Don't iterate over context - just yield directly
+        yield h.div["No context iteration"]
+        log_result("  NoContextComponent: after yield")
+    
+    log_result("No-context component defined")
+    
+    try:
+        result3 = NoContextComponent(mock_props, mock_js_ctx)
+        log_result(f"✅ No-context component succeeded: {type(result3)}")
+    except Exception as e:
+        log_result(f"❌ No-context component failed: {e}")
+        
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+
+log_result("Context iteration test completed")
+    </script>
+</body>
+</html>

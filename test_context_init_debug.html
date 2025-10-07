@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Context Init Debug</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/dom.py": "crank/dom.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Object, console
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+    console.log(message)
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    log_result("🔍 Context.__init__ Debug - Step by step...")
+    
+    # Create a simple mock JS context
+    mock_ctx_js = Object.new()
+    mock_ctx_js.props = Object.new()
+    
+    log_result(f"Created mock context: {type(mock_ctx_js)}")
+    
+    # Test each part of Context.__init__ separately
+    log_result("=== Testing Context.__init__ step by step ===")
+    
+    class DebugContext:
+        def __init__(self, js_context):
+            log_result("Step 1: Starting __init__")
+            self._js_context = js_context
+            log_result("Step 2: Stored _js_context")
+            
+            # Store original methods with safe access
+            log_result("Step 3: Getting refresh method")
+            self._refresh = getattr(js_context, 'refresh', None)
+            if self._refresh and hasattr(self._refresh, 'bind'):
+                self._refresh = self._refresh.bind(js_context)
+            log_result("Step 4: Got refresh method")
+
+            log_result("Step 5: Getting schedule method")
+            self._schedule = getattr(js_context, 'schedule', None)
+            if self._schedule and hasattr(self._schedule, 'bind'):
+                self._schedule = self._schedule.bind(js_context)
+            log_result("Step 6: Got schedule method")
+
+            log_result("Step 7: Getting after method")
+            self._after = getattr(js_context, 'after', None)
+            if self._after and hasattr(self._after, 'bind'):
+                self._after = self._after.bind(js_context)
+            log_result("Step 8: Got after method")
+
+            log_result("Step 9: Getting cleanup method")
+            self._cleanup = getattr(js_context, 'cleanup', None)
+            if self._cleanup and hasattr(self._cleanup, 'bind'):
+                self._cleanup = self._cleanup.bind(js_context)
+            log_result("Step 10: Got cleanup method")
+
+            log_result("Step 11: About to start property enumeration")
+            
+            # Test the property enumeration that was triggering the bug
+            try:
+                if sys.implementation.name == 'micropython':
+                    log_result("Step 11a: Using MicroPython JavaScript enumeration")
+                    # Use JavaScript to safely enumerate properties
+                    from js import eval as js_eval
+                    js_code = """
+                    (function(jsObj) {
+                        const props = [];
+                        for (const key in jsObj) {
+                            if (typeof key === 'string' && !key.startsWith('_') && 
+                                !['refresh', 'schedule', 'after', 'cleanup', 'value'].includes(key)) {
+                                props.push(key);
+                            }
+                        }
+                        return props;
+                    })
+                    """
+                    get_props = js_eval(js_code)
+                    attrs = get_props(js_context)
+                    log_result("Step 11b: JavaScript enumeration succeeded")
+                    
+                    # Convert to Python list if needed
+                    if hasattr(attrs, 'to_py'):
+                        attrs = attrs.to_py()
+                    elif hasattr(attrs, '__iter__'):
+                        attrs = list(attrs)
+                    else:
+                        attrs = []
+                    log_result("Step 11c: Converted to Python list")
+                        
+                else:
+                    log_result("Step 11a: Using Pyodide dir() enumeration")
+                    # Pyodide: Use normal dir() which works fine
+                    attrs = [attr for attr in dir(js_context) 
+                            if not attr.startswith('_') and attr not in ['refresh', 'schedule', 'after', 'cleanup', 'value']]
+                    log_result("Step 11b: dir() enumeration succeeded")
+                
+                log_result(f"Step 12: Found {len(attrs)} attributes")
+                
+                # Copy the enumerated attributes
+                for i, attr in enumerate(attrs):
+                    log_result(f"Step 13.{i}: Copying attribute '{attr}'")
+                    try:
+                        value = getattr(js_context, attr)
+                        setattr(self, attr, value)
+                        log_result(f"Step 13.{i}b: Copied '{attr}' successfully")
+                    except Exception as e:
+                        log_result(f"Step 13.{i}b: Failed to copy '{attr}': {e}")
+                        pass
+                
+                log_result("Step 14: Completed property enumeration")
+                
+            except Exception as e:
+                log_result(f"❌ Property enumeration failed: {e}")
+            
+            log_result("Step 15: Context.__init__ completed")
+    
+    log_result("Creating DebugContext...")
+    debug_ctx = DebugContext(mock_ctx_js)
+    log_result(f"✅ DebugContext created successfully: {type(debug_ctx)}")
+    
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+
+log_result("Context init debug completed")
+    </script>
+</body>
+</html>

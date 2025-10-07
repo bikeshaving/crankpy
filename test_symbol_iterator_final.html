@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Final Symbol.iterator Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/dom.py": "crank/dom.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Symbol
+from pyscript.ffi import create_proxy
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    log_result("🚀 Final test: Python-side Symbol.iterator with proper type handling...")
+    
+    # Create a fibonacci generator
+    def fibonacci_generator():
+        a, b = 0, 1
+        for i in range(10):
+            yield a
+            a, b = b, a + b
+    
+    iterator_symbol = Symbol.iterator
+    
+    # Fixed approach: Handle both Symbol access and potential integer indexing
+    class PythonIterable:
+        def __init__(self, python_generator):
+            self.python_generator = python_generator
+        
+        def __getitem__(self, key):
+            # Handle Symbol.iterator access
+            if key == iterator_symbol:
+                def iterator_function():
+                    # Return an object that implements the iterator protocol
+                    class PythonIterator:
+                        def __init__(self, generator):
+                            self.generator = generator
+                        
+                        def next(self):
+                            try:
+                                value = next(self.generator)
+                                return {"value": value, "done": False}
+                            except StopIteration:
+                                return {"value": None, "done": True}
+                    
+                    return PythonIterator(self.python_generator)
+                
+                return create_proxy(iterator_function)
+            
+            # Handle potential integer or string indexing
+            else:
+                raise KeyError(f"Key not found: {key}")
+        
+        def __getattr__(self, name):
+            # Handle any other attribute access
+            if name == str(iterator_symbol):
+                return self.__getitem__(iterator_symbol)
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+    
+    log_result("Creating enhanced Python iterable...")
+    
+    # Test 1: Manual iterator test
+    fib_iterable = PythonIterable(fibonacci_generator())
+    
+    try:
+        iterator_func = fib_iterable[iterator_symbol]
+        log_result(f"✅ Got iterator function: {type(iterator_func)}")
+        
+        # Test creating iterator
+        iterator = iterator_func()
+        log_result(f"✅ Created iterator: {type(iterator)}")
+        
+        # Test manual iteration
+        results = []
+        for i in range(5):
+            result = iterator.next()
+            if result["done"]:
+                break
+            results.append(result["value"])
+        
+        log_result(f"✅ Manual iteration results: {results}")
+        
+    except Exception as e:
+        log_result(f"❌ Manual test failed: {e}")
+    
+    # Test 2: JavaScript for...of test
+    log_result("🎯 Testing JavaScript for...of iteration...")
+    
+    js_test_code = """
+    (function(pythonIterable) {
+        try {
+            console.log('Testing for...of with enhanced iterable');
+            console.log('Iterable type:', typeof pythonIterable);
+            
+            // Check if Symbol.iterator exists
+            const iteratorSymbol = Symbol.iterator;
+            const iteratorFunc = pythonIterable[iteratorSymbol];
+            console.log('Iterator function:', typeof iteratorFunc);
+            
+            if (!iteratorFunc) {
+                return { success: false, error: 'No Symbol.iterator found' };
+            }
+            
+            // Test manual iteration first
+            const iterator = iteratorFunc();
+            console.log('Created iterator:', typeof iterator);
+            
+            const manualResults = [];
+            for (let i = 0; i < 5; i++) {
+                const result = iterator.next();
+                if (result.done) break;
+                manualResults.push(result.value);
+            }
+            console.log('Manual iteration worked:', manualResults);
+            
+            // Test for...of iteration
+            const results = [];
+            let count = 0;
+            for (const value of pythonIterable) {
+                results.push(value);
+                count++;
+                if (count > 10) break; // Safety
+            }
+            
+            return { 
+                success: true, 
+                results: results,
+                manualResults: manualResults 
+            };
+            
+        } catch (e) {
+            console.log('Error during iteration:', e.message);
+            console.log('Error stack:', e.stack);
+            return { 
+                success: false, 
+                error: e.message,
+                stack: e.stack
+            };
+        }
+    })
+    """
+    
+    from js import eval as js_eval
+    test_func = js_eval(js_test_code)
+    
+    try:
+        # Test with fresh generator
+        fresh_iterable = PythonIterable(fibonacci_generator())
+        result = test_func(fresh_iterable)
+        
+        log_result(f"JavaScript test success: {result.success}")
+        
+        if result.success:
+            log_result(f"🎉 for...of results: {list(result.results)}")
+            log_result(f"🎉 Manual JS results: {list(result.manualResults)}")
+            log_result("✅ SUCCESS: Python-side Symbol.iterator works perfectly!")
+        else:
+            log_result(f"❌ JavaScript error: {result.error}")
+            if hasattr(result, 'stack'):
+                log_result(f"Stack trace: {result.stack}")
+            
+    except Exception as e:
+        log_result(f"❌ Test execution failed: {e}")
+        import traceback
+        log_result(f"Python traceback: {traceback.format_exc()}")
+        
+except Exception as e:
+    log_result(f"❌ Overall test failed: {e}")
+    import traceback
+    log_result(f"Traceback: {traceback.format_exc()}")
+
+log_result("Final Symbol.iterator test completed")
+    </script>
+</body>
+</html>

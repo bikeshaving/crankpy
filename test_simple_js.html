@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Simple JS Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, window, eval as js_eval, Symbol, Object
+from pyscript.ffi import create_proxy, to_js
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    # Step 1: Test basic eval
+    log_result("Step 1: Testing basic eval...")
+    basic_result = js_eval("({test: 'hello'})")
+    log_result(f"Basic eval result: {basic_result.test}")
+    
+    # Step 2: Test Symbol.iterator access
+    log_result("Step 2: Testing Symbol.iterator...")
+    iterator_symbol = Symbol.iterator
+    log_result(f"Symbol.iterator: {type(iterator_symbol)}")
+    
+    # Step 3: Test creating simple iterator function
+    log_result("Step 3: Testing iterator function...")
+    
+    def make_simple_iterator():
+        count = 0
+        def next_func():
+            nonlocal count
+            count += 1
+            if count <= 3:
+                return to_js({'value': f'item{count}', 'done': False})
+            else:
+                return to_js({'value': None, 'done': True})
+        
+        iterator = Object.new()
+        iterator.next = create_proxy(next_func)
+        return iterator
+    
+    # Store on window
+    window.testIteratorFactory = create_proxy(make_simple_iterator)
+    log_result("✅ Iterator factory stored")
+    
+    # Step 4: Test the JavaScript code structure
+    log_result("Step 4: Testing JavaScript code...")
+    
+    js_code = """
+    (function() {
+        try {
+            const obj = {};
+            obj[Symbol.iterator] = window.testIteratorFactory;
+            return obj;
+        } catch (e) {
+            return {error: e.message};
+        }
+    })()
+    """
+    
+    result = js_eval(js_code)
+    log_result(f"JS code result: {type(result)}")
+    
+    # Check for error
+    if hasattr(result, 'error'):
+        log_result(f"❌ JS error: {result.error}")
+    else:
+        # Test if Symbol.iterator exists
+        has_iterator = iterator_symbol in result
+        log_result(f"Has Symbol.iterator: {has_iterator}")
+        
+        if has_iterator:
+            log_result("✅ Symbol.iterator found!")
+            
+            # Test iteration
+            iterator = result[iterator_symbol]()
+            result1 = iterator.next()
+            log_result(f"Iteration 1: {result1.value}, done: {result1.done}")
+            
+            result2 = iterator.next()
+            log_result(f"Iteration 2: {result2.value}, done: {result2.done}")
+        else:
+            log_result("❌ Symbol.iterator not found")
+            
+            # Debug: check what properties exist
+            try:
+                # Get property names using JavaScript
+                props_code = f"""
+                (function(obj) {{
+                    return Object.getOwnPropertyNames(obj).concat(Object.getOwnPropertySymbols(obj).map(s => s.toString()));
+                }})
+                """
+                props_func = js_eval(props_code)
+                props = props_func(result)
+                log_result(f"Object properties: {props}")
+            except Exception as e:
+                log_result(f"Error getting properties: {e}")
+    
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+
+log_result("Simple JS test completed")
+    </script>
+</body>
+</html>

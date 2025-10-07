@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Wrapper Debug Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+    
+    <!-- Set up our iterable helper -->
+    <script>
+        window.crankPyCreateIterable = function(items) {
+            console.log('crankPyCreateIterable called with:', items);
+            return {
+                [Symbol.iterator]: function() {
+                    let index = 0;
+                    return {
+                        next: function() {
+                            if (index < items.length) {
+                                return { value: items[index++], done: false };
+                            } else {
+                                return { value: undefined, done: true };
+                            }
+                        }
+                    };
+                }
+            };
+        };
+    </script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/dom.py": "crank/dom.py", 
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Object, window, Symbol
+from pyscript.ffi import create_proxy, to_js
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    from crank import h, component, create_js_iterable
+    
+    log_result("Testing our component wrapper logic...")
+    
+    # Test 1: Test create_js_iterable directly with a generator
+    log_result("Step 1: Testing create_js_iterable...")
+    
+    def test_generator():
+        yield h.div["test1"]
+        yield h.div["test2"]
+    
+    gen = test_generator()
+    log_result(f"Generator created: {type(gen)}")
+    
+    # Test our create_js_iterable function
+    js_iterable = create_js_iterable(gen)
+    log_result(f"JS iterable created: {type(js_iterable)}")
+    
+    # Test if it has Symbol.iterator (using bracket notation)
+    iterator_symbol = Symbol.iterator
+    try:
+        iterator_method = js_iterable[iterator_symbol]
+        log_result(f"✅ JS iterable has Symbol.iterator: {iterator_method is not None}")
+    except Exception as e:
+        log_result(f"❌ JS iterable Symbol.iterator test failed: {e}")
+    
+    # Test 2: Test the component wrapper manually
+    log_result("Step 2: Testing component wrapper manually...")
+    
+    # Recreate the wrap_result logic manually
+    def manual_wrap_result(result):
+        log_result(f"  wrap_result called with: {type(result)}")
+        log_result(f"  sys.implementation.name: {sys.implementation.name}")
+        
+        # Check conditions
+        has_send = hasattr(result, 'send')
+        has_next = hasattr(result, '__next__')
+        has_asend = hasattr(result, 'asend')
+        has_anext = hasattr(result, '__anext__')
+        
+        log_result(f"  has_send: {has_send}, has_next: {has_next}")
+        log_result(f"  has_asend: {has_asend}, has_anext: {has_anext}")
+        
+        if (sys.implementation.name == 'micropython' and 
+            (has_send or has_next or has_asend or has_anext)):
+            log_result("  ✅ Conditions met - calling create_js_iterable")
+            return create_js_iterable(result)
+        else:
+            log_result("  ❌ Conditions not met - returning result as-is")
+            return result
+    
+    # Test with a generator
+    test_gen = test_generator()
+    wrapped_result = manual_wrap_result(test_gen)
+    log_result(f"Manual wrap result: {type(wrapped_result)}")
+    
+    # Test 3: Test the actual component call
+    log_result("Step 3: Testing actual component...")
+    
+    @component
+    def TestComponent(ctx):
+        log_result("  TestComponent called")
+        for props in ctx:
+            log_result("  TestComponent: in context loop")
+            yield h.div["Test component"]
+            log_result("  TestComponent: after yield")
+            break
+    
+    log_result("Component defined")
+    
+    # Call component manually to see what happens
+    mock_props = Object.new()
+    mock_ctx = Object.new()
+    mock_ctx.props = Object.new()
+    
+    try:
+        log_result("Calling TestComponent manually...")
+        component_result = TestComponent(mock_props, mock_ctx)
+        log_result(f"✅ Component call succeeded: {type(component_result)}")
+        
+        # Check if result has Symbol.iterator
+        if component_result:
+            try:
+                comp_iterator_method = component_result[iterator_symbol]
+                log_result(f"✅ Component result has Symbol.iterator: {comp_iterator_method is not None}")
+            except Exception as e:
+                log_result(f"❌ Component result Symbol.iterator test failed: {e}")
+        
+    except Exception as e:
+        log_result(f"❌ Component call failed: {e}")
+        
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+
+log_result("Wrapper debug test completed")
+    </script>
+</body>
+</html>

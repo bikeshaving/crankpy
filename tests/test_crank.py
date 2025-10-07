@@ -3,8 +3,7 @@ Test core Crank.py functionality without mocks
 """
 
 import pytest
-
-from crank import component, h, Context, Fragment
+from crank import Fragment, component, h
 
 
 class TestContextFunctionality:
@@ -17,7 +16,7 @@ class TestContextFunctionality:
             # Test that we can iterate over context
             for props in ctx:
                 yield h.div[f"Props: {props}"]
-        
+
         assert callable(TestIterationComponent)
         element = h(TestIterationComponent)
         assert element is not None
@@ -29,7 +28,7 @@ class TestContextFunctionality:
             # Test that we can async iterate over context
             async for props in ctx:
                 yield h.div[f"Async props: {props}"]
-        
+
         assert callable(TestAsyncIterationComponent)
         element = h(TestAsyncIterationComponent)
         assert element is not None
@@ -43,10 +42,10 @@ class TestContextFunctionality:
             assert hasattr(ctx, 'schedule')
             assert hasattr(ctx, 'after')
             assert hasattr(ctx, 'cleanup')
-            
+
             for props in ctx:
                 yield h.div["Decorators exist"]
-        
+
         assert callable(TestDecoratorsComponent)
         element = h(TestDecoratorsComponent)
         assert element is not None
@@ -60,7 +59,7 @@ class TestContextFunctionality:
                 name = props.get("name", "default")
                 count = props.get("count", 0)
                 yield h.div[f"Name: {name}, Count: {count}"]
-        
+
         assert callable(TestPropsComponent)
         element1 = h(TestPropsComponent)
         element2 = h(TestPropsComponent, name="test", count=5)
@@ -76,7 +75,7 @@ class TestElementBuilder:
         # Test that ElementBuilder creates elements
         div_builder = h.div
         span_builder = h.span
-        
+
         assert div_builder is not None
         assert span_builder is not None
 
@@ -84,7 +83,7 @@ class TestElementBuilder:
         """Test ElementBuilder with props"""
         element = h.div(className="test", id="main")
         assert element is not None
-        
+
         input_element = h.input(type="text", value="test")
         assert input_element is not None
 
@@ -92,7 +91,7 @@ class TestElementBuilder:
         """Test ElementBuilder with children"""
         element = h.div["Text content"]
         assert element is not None
-        
+
         nested_element = h.div[
             h.span["Child 1"],
             h.span["Child 2"]
@@ -110,13 +109,13 @@ class TestElementBuilder:
         """Test ElementBuilder handles callable props"""
         def click_handler():
             pass
-        
+
         def input_handler(event):
             pass
-        
+
         button = h.button(onClick=click_handler)["Click me"]
         input_elem = h.input(onInput=input_handler, type="text")
-        
+
         assert button is not None
         assert input_elem is not None
 
@@ -124,13 +123,13 @@ class TestElementBuilder:
         """Test ElementBuilder with complex prop types"""
         style_object = {"color": "red", "fontSize": "16px"}
         data_object = {"user": "test", "id": 123}
-        
+
         element = h.div(
             style=style_object,
             data=data_object,
             className="complex"
         )["Complex element"]
-        
+
         assert element is not None
 
 
@@ -142,7 +141,7 @@ class TestHyperscriptSyntax:
         div = h.div["Hello World"]
         p = h.p["Some text"]
         span = h.span["Content"]
-        
+
         assert div is not None
         assert p is not None
         assert span is not None
@@ -152,7 +151,7 @@ class TestHyperscriptSyntax:
         input_elem = h.input(type="text", value="sample")
         div_elem = h.div(className="my-class")
         button_elem = h.button(disabled=True)
-        
+
         assert input_elem is not None
         assert div_elem is not None
         assert button_elem is not None
@@ -164,7 +163,7 @@ class TestHyperscriptSyntax:
 
         button = h.button(className="btn", **userProps)["Button"]
         input_elem = h.input(type="text", required=True, **formProps)
-        
+
         assert button is not None
         assert input_elem is not None
 
@@ -179,7 +178,7 @@ class TestHyperscriptSyntax:
                 " content"
             ]
         ]
-        
+
         assert nested is not None
 
     def test_component_usage_patterns(self):
@@ -192,10 +191,10 @@ class TestHyperscriptSyntax:
 
         # Component without props
         comp1 = h(TestComponent)
-        
+
         # Component with props
         comp2 = h(TestComponent, name="Custom")
-        
+
         assert comp1 is not None
         assert comp2 is not None
 
@@ -203,19 +202,19 @@ class TestHyperscriptSyntax:
         """Test Fragment usage patterns"""
         # Empty fragment
         empty_frag = h(Fragment)
-        
+
         # Fragment with children
         frag_with_children = h(Fragment)[
             h.div["First"],
             h.div["Second"]
         ]
-        
+
         # Fragment shorthand with empty string
         shorthand_frag = h("")[
             h.span["Item 1"],
             h.span["Item 2"]
         ]
-        
+
         assert empty_frag is not None
         assert frag_with_children is not None
         assert shorthand_frag is not None
@@ -230,28 +229,28 @@ class TestComponentPatterns:
         @component
         def NoParamsComponent():
             return h.div["No params"]
-        
+
         # Context only
         @component
         def ContextOnlyComponent(ctx):
             for props in ctx:
                 yield h.div["Context only"]
-        
+
         # Context and props
         @component
         def ContextPropsComponent(ctx, props):
             for _ in ctx:
                 yield h.div[f"Hello {props.get('name', 'World')}"]
-        
+
         assert callable(NoParamsComponent)
         assert callable(ContextOnlyComponent)
         assert callable(ContextPropsComponent)
-        
+
         # Test they can be used
         elem1 = h(NoParamsComponent)
         elem2 = h(ContextOnlyComponent)
         elem3 = h(ContextPropsComponent, name="Test")
-        
+
         assert elem1 is not None
         assert elem2 is not None
         assert elem3 is not None
@@ -263,22 +262,22 @@ class TestComponentPatterns:
             @ctx.refresh
             def handle_click():
                 pass
-            
+
             @ctx.schedule
             def before_render():
                 pass
-            
+
             @ctx.after
             def after_render():
                 pass
-            
+
             @ctx.cleanup
             def cleanup():
                 pass
-            
+
             for props in ctx:
                 yield h.div(onClick=handle_click)["Lifecycle test"]
-        
+
         assert callable(LifecycleComponent)
         element = h(LifecycleComponent)
         assert element is not None
@@ -286,14 +285,10 @@ class TestComponentPatterns:
     def test_error_handling_invalid_signatures(self):
         """Test error handling for invalid component signatures"""
         # This should raise an error due to too many parameters
-        @component
-        def TooManyParamsComponent(ctx, props, extra, another):
-            return h.div["Too many params"]
-        
-        # The error should occur when the component is actually called by Crank
-        # We'll skip this test since we can't easily simulate Crank calling it
-        # The validation is tested in real integration tests
-        pass
+        with pytest.raises(ValueError, match="incompatible signature"):
+            @component
+            def TooManyParamsComponent(ctx, props, extra, another):
+                return h.div["Too many params"]
 
 
 class TestREADMEExamples:
@@ -305,7 +300,7 @@ class TestREADMEExamples:
         def HelloWorld(ctx):
             for props in ctx:
                 yield h.div["Hello World!"]
-        
+
         element = h(HelloWorld)
         assert element is not None
 
@@ -314,24 +309,24 @@ class TestREADMEExamples:
         @component
         def Counter(ctx):
             count = 0
-            
+
             @ctx.refresh
             def increment():
                 nonlocal count
                 count += 1
-            
+
             @ctx.refresh
             def decrement():
                 nonlocal count
                 count -= 1
-            
+
             for props in ctx:
                 yield h.div[
                     h.h1[f"Count: {count}"],
                     h.button(onClick=increment)["+"],
                     h.button(onClick=decrement)["-"]
                 ]
-        
+
         element = h(Counter)
         assert element is not None
 
@@ -343,11 +338,11 @@ class TestREADMEExamples:
                 name = props.get("name", "World")
                 greeting = props.get("greeting", "Hello")
                 yield h.div[f"{greeting} {name}!"]
-        
+
         element1 = h(Greeting)
         element2 = h(Greeting, name="Alice")
         element3 = h(Greeting, name="Bob", greeting="Hi")
-        
+
         assert element1 is not None
         assert element2 is not None
         assert element3 is not None
@@ -360,7 +355,7 @@ class TestREADMEExamples:
                 todo = props.get("todo", {})
                 title = todo.get("title", "No title")
                 completed = todo.get("completed", False)
-                
+
                 yield h.li(className="completed" if completed else None)[
                     h.div(className="view")[
                         h.input(className="toggle", type="checkbox", checked=completed),
@@ -368,7 +363,7 @@ class TestREADMEExamples:
                         h.button(className="destroy")
                     ]
                 ]
-        
+
         @component
         def TodoApp(ctx):
             for props in ctx:
@@ -384,12 +379,12 @@ class TestREADMEExamples:
                         ]
                     ]
                 ]
-        
+
         test_todos = [
             {"title": "Learn Crank.py", "completed": False},
             {"title": "Build an app", "completed": True}
         ]
-        
+
         element = h(TodoApp, todos=test_todos)
         assert element is not None
 
@@ -400,35 +395,35 @@ class TestSyntaxValidation:
     def test_all_readme_examples_compile(self):
         """Test that all README examples compile without errors"""
         # This is a compilation test - if it runs without exception, it passes
-        
+
         # Basic component
         @component
         def BasicComponent(ctx):
             for props in ctx:
                 yield h.div["Basic"]
-        
+
         # Component with state
         @component
         def StatefulComponent(ctx):
             count = 0
-            
+
             @ctx.refresh
             def increment():
                 nonlocal count
                 count += 1
-            
+
             for props in ctx:
                 yield h.div[
                     h.span[f"Count: {count}"],
                     h.button(onClick=increment)["Increment"]
                 ]
-        
+
         # Component with props
         @component
         def PropsComponent(ctx):
             for props in ctx:
                 yield h.div[f"Hello {props.get('name', 'World')}"]
-        
+
         # All should compile
         assert callable(BasicComponent)
         assert callable(StatefulComponent)
@@ -437,15 +432,15 @@ class TestSyntaxValidation:
     def test_hyperscript_syntax_examples(self):
         """Test various hyperscript syntax patterns"""
         # All these should compile without errors
-        
+
         # Basic elements
         div = h.div["Content"]
         span = h.span["Text"]
-        
+
         # Elements with props
         input_elem = h.input(type="text", placeholder="Enter text")
         button = h.button(className="btn", onClick=lambda: None)["Click"]
-        
+
         # Nested structures
         nested = h.div(className="container")[
             h.header[h.h1["Title"]],
@@ -457,7 +452,7 @@ class TestSyntaxValidation:
                 ]
             ]
         ]
-        
+
         # All should be created successfully
         assert div is not None
         assert span is not None
@@ -475,7 +470,7 @@ class TestEdgeCases:
         def EmptyComponent(ctx):
             for props in ctx:
                 pass  # No yield statement
-        
+
         assert callable(EmptyComponent)
         element = h(EmptyComponent)
         assert element is not None
@@ -485,7 +480,7 @@ class TestEdgeCases:
         @component
         def ReturnComponent(ctx):
             return h.div["Using return"]
-        
+
         assert callable(ReturnComponent)
         element = h(ReturnComponent)
         assert element is not None
@@ -503,7 +498,7 @@ class TestEdgeCases:
                     ]
                 else:
                     yield h.div["Bottom level"]
-        
+
         element = h(DeepComponent, level=3)
         assert element is not None
 
@@ -511,7 +506,7 @@ class TestEdgeCases:
         """Test handling of None props"""
         element1 = h.div(className=None)["Content"]
         element2 = h.input(value=None, type="text")
-        
+
         assert element1 is not None
         assert element2 is not None
 
@@ -525,5 +520,5 @@ class TestEdgeCases:
             0,  # Falsy number
             h.span["Also shown"]
         ]
-        
+
         assert element is not None

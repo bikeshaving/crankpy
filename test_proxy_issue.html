@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Proxy Issue Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/dom.py": "crank/dom.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Symbol
+from pyscript.ffi import create_proxy
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    from crank import SymbolIteratorWrapper
+    
+    log_result("🔍 Testing if create_proxy breaks our wrapper...")
+    
+    def test_gen():
+        yield "test1"
+        yield "test2"
+    
+    # Test 1: Direct wrapper (no proxy)
+    wrapper = SymbolIteratorWrapper(test_gen())
+    log_result(f"Direct wrapper: {type(wrapper)}")
+    
+    try:
+        iterator_func = wrapper[Symbol.iterator]
+        iterator = iterator_func()
+        result = iterator.next()
+        log_result(f"✅ Direct wrapper works: {result}")
+    except Exception as e:
+        log_result(f"❌ Direct wrapper failed: {e}")
+    
+    # Test 2: Proxied wrapper
+    proxied_wrapper = create_proxy(wrapper)
+    log_result(f"Proxied wrapper: {type(proxied_wrapper)}")
+    
+    try:
+        proxied_iterator_func = proxied_wrapper[Symbol.iterator]
+        proxied_iterator = proxied_iterator_func()
+        proxied_result = proxied_iterator.next()
+        log_result(f"✅ Proxied wrapper works: {proxied_result}")
+    except Exception as e:
+        log_result(f"❌ Proxied wrapper failed: {e}")
+    
+    # Test 3: Check if proxy delegates to __getitem__
+    class TestGetItem:
+        def __getitem__(self, key):
+            log_result(f"TestGetItem.__getitem__ called with: {key}")
+            return "SUCCESS"
+    
+    test_obj = TestGetItem()
+    proxied_test = create_proxy(test_obj)
+    
+    log_result("Testing proxy delegation...")
+    try:
+        direct_result = test_obj[Symbol.iterator]
+        log_result(f"Direct TestGetItem: {direct_result}")
+    except Exception as e:
+        log_result(f"Direct TestGetItem failed: {e}")
+    
+    try:
+        proxied_result = proxied_test[Symbol.iterator]
+        log_result(f"Proxied TestGetItem: {proxied_result}")
+    except Exception as e:
+        log_result(f"❌ Proxied TestGetItem failed: {e}")
+        log_result("🚨 create_proxy() does NOT delegate Symbol access to __getitem__!")
+        
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+
+log_result("Proxy issue test completed")
+    </script>
+</body>
+</html>

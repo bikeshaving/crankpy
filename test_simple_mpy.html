@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Simple MicroPython Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="output"></div>
+    
+    <mpy-config>
+        {}
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document
+
+output_div = document.getElementById("output")
+
+def log(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log(f"Python implementation: {sys.implementation.name}")
+log(f"Python version: {sys.version}")
+
+# Test basic functionality
+try:
+    log("Testing basic MicroPython features...")
+    
+    # Test 1: Basic objects and functions
+    test_dict = {"a": 1, "b": 2}
+    log(f"✅ Dictionary creation: {test_dict}")
+    
+    # Test 2: List comprehensions
+    test_list = [x * 2 for x in range(5)]
+    log(f"✅ List comprehension: {test_list}")
+    
+    # Test 3: Generator functions
+    def test_generator():
+        yield "hello"
+        yield "world"
+    
+    gen_result = list(test_generator())
+    log(f"✅ Generator function: {gen_result}")
+    
+    # Test 4: JavaScript interop
+    from js import Object
+    js_obj = Object.new()
+    js_obj.test = "value"
+    log(f"✅ JavaScript interop: {js_obj.test}")
+    
+    log("✅ Test completed")
+    
+except Exception as e:
+    log(f"❌ Test failed: {e}")
+    </script>
+</body>
+</html>

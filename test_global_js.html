@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Global JS Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+    
+    <!-- Add our own JavaScript helper -->
+    <script>
+        window.createIterable = function(items) {
+            return {
+                [Symbol.iterator]: function() {
+                    let index = 0;
+                    return {
+                        next: function() {
+                            if (index < items.length) {
+                                return { value: items[index++], done: false };
+                            } else {
+                                return { value: undefined, done: true };
+                            }
+                        }
+                    };
+                }
+            };
+        };
+        
+        window.testIterable = function(iterable) {
+            try {
+                const iterator = iterable[Symbol.iterator]();
+                const results = [];
+                let result = iterator.next();
+                while (!result.done) {
+                    results.push(result.value);
+                    result = iterator.next();
+                }
+                return { success: true, results: results };
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        };
+    </script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, window
+from pyscript.ffi import create_proxy, to_js
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    # Test using the JavaScript helper function
+    log_result("Testing JavaScript helper function...")
+    
+    # Create items in Python
+    items = ["hello", "world", "from", "micropython"]
+    js_items = to_js(items)
+    
+    # Use the JavaScript helper to create a proper iterable
+    iterable = window.createIterable(js_items)
+    log_result(f"Iterable created: {type(iterable)}")
+    
+    # Test the iterable
+    test_result = window.testIterable(iterable)
+    log_result(f"Test success: {test_result.success}")
+    
+    if test_result.success:
+        log_result(f"✅ Results: {test_result.results}")
+        
+        # Now try to use this in a component-like function
+        log_result("Testing component-like function...")
+        
+        def component_function(props, ctx):
+            """Component that returns proper JS iterable"""
+            log_result("Component function called!")
+            
+            # Simulate generator yields
+            component_items = ["Component", "Item", "1"]
+            js_component_items = to_js(component_items)
+            
+            # Return proper iterable
+            return window.createIterable(js_component_items)
+        
+        # Test the component function
+        from js import Object
+        mock_ctx = Object.new()
+        mock_props = Object.new()
+        
+        component_result = component_function(mock_props, mock_ctx)
+        component_test = window.testIterable(component_result)
+        
+        log_result(f"Component test success: {component_test.success}")
+        if component_test.success:
+            log_result(f"✅ Component results: {component_test.results}")
+            log_result("🎉 SUCCESS! This approach works!")
+        else:
+            log_result(f"❌ Component test failed: {component_test.error}")
+    else:
+        log_result(f"❌ Test failed: {test_result.error}")
+        
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+
+log_result("Global JS test completed")
+    </script>
+</body>
+</html>

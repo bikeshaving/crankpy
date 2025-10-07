@@ -1,0 +1,79 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>MicroPython vs Pyodide Comparison</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <h2>MicroPython Results:</h2>
+    <div id="mpy-output"></div>
+    
+    <h2>Pyodide Results:</h2>
+    <div id="py-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            }
+        }
+    </mpy-config>
+    
+    <py-config>
+        {
+            "files": {
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            }
+        }
+    </py-config>
+    
+    <script type="mpy">
+import sys
+from js import document
+
+output_div = document.getElementById("mpy-output")
+output_div.innerHTML = f"<div>Implementation: {sys.implementation.name}</div>"
+output_div.innerHTML += f"<div>Version: {sys.version}</div>"
+
+# Test type subscripting
+try:
+    test_generic = dict[str, int]
+    output_div.innerHTML += "<div>✅ dict[str, int] works</div>"
+except Exception as e:
+    output_div.innerHTML += f"<div>❌ dict[str, int] failed: {e}</div>"
+
+# Test typing imports
+try:
+    from typing import Dict
+    output_div.innerHTML += "<div>✅ typing.Dict import works</div>"
+except Exception as e:
+    output_div.innerHTML += f"<div>❌ typing.Dict import failed: {e}</div>"
+    </script>
+    
+    <script type="py">
+import sys
+from js import document
+
+output_div = document.getElementById("py-output")
+output_div.innerHTML = f"<div>Implementation: {sys.implementation.name}</div>"
+output_div.innerHTML += f"<div>Version: {sys.version}</div>"
+
+# Test type subscripting
+try:
+    test_generic = dict[str, int]
+    output_div.innerHTML += "<div>✅ dict[str, int] works</div>"
+except Exception as e:
+    output_div.innerHTML += f"<div>❌ dict[str, int] failed: {e}</div>"
+
+# Test typing imports
+try:
+    from typing import Dict
+    output_div.innerHTML += "<div>✅ typing.Dict import works</div>"
+except Exception as e:
+    output_div.innerHTML += f"<div>❌ typing.Dict import failed: {e}</div>"
+    </script>
+</body>
+</html>

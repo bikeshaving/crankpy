@@ -42,7 +42,7 @@ sys.modules['crank.dom'].renderer = mock_renderer
 # Export the mocks for use in tests
 __all__ = [
     'mock_create_proxy',
-    'mock_to_js', 
+    'mock_to_js',
     'mock_JsProxy',
     'mock_crank_core',
     'mock_renderer'

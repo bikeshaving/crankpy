@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Iterator Fix Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    <div id="render-target"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/dom.py": "crank/dom.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document
+
+output_div = document.getElementById("test-output")
+render_target = document.getElementById("render-target")
+
+def log_result(message):
+    output_div.innerHTML += f"<div class='result'>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    from crank import h, component
+    from crank.dom import renderer
+    log_result("✅ Basic imports successful")
+    
+    # Test 1: Generator component (should now work!)
+    log_result("Testing generator component with iterator fix...")
+    
+    @component
+    def GeneratorComponent(ctx):
+        for _ in ctx:
+            yield h.div["Hello from Generator!"]
+    
+    log_result("✅ Generator component created")
+    
+    # Test 2: Try to render it
+    log_result("Testing generator component rendering...")
+    component_element = h(GeneratorComponent)
+    log_result(f"✅ Component element created: {type(component_element)}")
+    
+    result = renderer.render(component_element, render_target)
+    log_result("✅ Generator component rendered successfully!")
+    
+    # Test 3: Non-generator component (should still work)
+    log_result("Testing non-generator component...")
+    
+    @component
+    def SimpleComponent(ctx):
+        return h.div["Hello from Simple!"]
+    
+    result2 = renderer.render(h(SimpleComponent), render_target)
+    log_result("✅ Non-generator component rendered successfully!")
+    
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+    log_result(f"Error type: {type(e).__name__}")
+    import traceback
+    log_result(f"Traceback: {traceback.format_exc()}")
+
+log_result("Iterator fix test completed")
+    </script>
+</body>
+</html>

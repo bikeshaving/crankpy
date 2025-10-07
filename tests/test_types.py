@@ -7,13 +7,9 @@ without runtime execution. Use `pyright tests/test_types.py` to run.
 Run with: uv run pyright tests/test_types.py
 """
 
-import sys
 from typing import Callable, Generic, List, Literal, TypedDict, TypeVar, Union
-from unittest.mock import Mock
 
 # Import mocks for PyScript/Pyodide modules
-from mock_setup import mock_crank_core, mock_create_proxy, mock_JsProxy, mock_to_js
-
 from crank import Children, Context, Element, Props, component, h
 
 
@@ -106,7 +102,7 @@ def test_component_usage() -> None:
 def test_hyperscript_typing() -> None:
     """Test hyperscript syntax type safety"""
 
-    # HTML elements  
+    # HTML elements
     _div_element = h.div["content"]
     _input_element = h.input(type="text", value="test")
     _button_element = h.button(onclick=lambda: None)  # Don't use chainable syntax in type test

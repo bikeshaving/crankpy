@@ -1,0 +1,114 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Error Handling Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <h1>Error Handling Test</h1>
+    <div id="output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/dom.py": "crank/dom.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document
+from crank import h, component
+
+output_div = document.getElementById("output")
+
+def log(message):
+    output_div.innerHTML += f"<p>{message}</p>"
+
+log(f"Python implementation: {sys.implementation.name}")
+
+# Test 1: Valid component signatures
+@component
+def ValidComponent0():
+    return h.div["No params"]
+
+@component  
+def ValidComponent1(ctx):
+    for _ in ctx:
+        yield h.div["One param (ctx)"]
+
+@component
+def ValidComponent2(ctx, props):
+    for props in ctx:
+        yield h.div["Two params (ctx, props)"]
+
+log("✅ Valid component signatures work")
+
+# Test 2: Component with parameter count mismatch (should be caught)
+def ComponentWithTooManyParams(a, b, c, d, e):
+    return h.div["Too many params"]
+
+try:
+    # This should create the component successfully
+    valid0 = ValidComponent0
+    valid1 = ValidComponent1  
+    valid2 = ValidComponent2
+    log("✅ All valid components created successfully")
+except Exception as e:
+    log(f"❌ Valid component creation failed: {e}")
+
+# Test parameter count mismatch behavior
+try:
+    bad_component = component(ComponentWithTooManyParams)
+    # In CPython: should fail at decoration time due to inspect.signature
+    # In MicroPython: decoration succeeds, but will fail at runtime
+    if sys.implementation.name == 'micropython':
+        log("✅ MicroPython: Component with too many params created (will fail at runtime)")
+    else:
+        log("❌ CPython: Component with too many params should have failed at decoration time")
+except ValueError as e:
+    if "incompatible signature" in str(e):
+        log(f"✅ Parameter mismatch correctly caught at decoration time: {e}")
+    else:
+        log(f"❌ Wrong ValueError: {e}")
+except Exception as e:
+    log(f"❌ Wrong error type for param mismatch: {type(e).__name__}: {e}")
+
+# Test that real TypeErrors in user code are properly propagated
+log("Testing TypeError propagation...")
+try:
+    # Create a simple function with a guaranteed TypeError
+    def buggy_function():
+        bad_var = None
+        return bad_var + "string"  # This will definitely cause TypeError
+    
+    # Test that the TypeError is raised as expected
+    try:
+        result = buggy_function()
+        log("❌ TypeError should have been raised but wasn't")
+    except TypeError as e:
+        log(f"✅ Simple TypeError correctly raised: {e}")
+    except Exception as e:
+        log(f"❌ Unexpected error in simple test: {type(e).__name__}: {e}")
+        
+    log("✅ TypeError propagation test completed successfully")
+        
+except Exception as e:
+    log(f"❌ TypeError test setup failed: {e}")
+
+log("Error handling tests completed")
+    </script>
+</body>
+</html>

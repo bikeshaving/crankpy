@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Wrapper Call Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/dom.py": "crank/dom.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Object, Symbol, window
+from pyscript.ffi import create_proxy
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    from crank import h, component
+    
+    # Add debugging to our create_js_iterable function
+    original_console_log = window.console.log
+    
+    def debug_log(msg):
+        log_result(f"[DEBUG] {msg}")
+        original_console_log(f"[PYTHON_DEBUG] {msg}")
+    
+    # Monkey patch console logging
+    window.console.log = debug_log
+    
+    log_result("Testing component wrapper with debugging...")
+    
+    @component
+    def DebugComponent(ctx):
+        log_result("  DebugComponent called")
+        for props in ctx:
+            log_result("  DebugComponent: iteration successful")
+            yield h.div["Debug test"]
+            break
+    
+    log_result("Component defined")
+    
+    # Test calling it
+    mock_props = Object.new()
+    mock_ctx = Object.new()
+    mock_ctx.props = Object.new()
+    
+    try:
+        log_result("Calling DebugComponent...")
+        result = DebugComponent(mock_props, mock_ctx)
+        log_result(f"✅ Call succeeded: {type(result)}")
+        
+        # Check if result has Symbol.iterator
+        iterator_symbol = Symbol.iterator
+        try:
+            iterator_method = result[iterator_symbol]
+            log_result(f"✅ Result has Symbol.iterator: {iterator_method is not None}")
+        except Exception as e:
+            log_result(f"❌ Result Symbol.iterator check failed: {e}")
+        
+    except Exception as e:
+        log_result(f"❌ Call failed: {e}")
+    
+    # Restore console
+    window.console.log = original_console_log
+        
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+
+log_result("Wrapper call test completed")
+    </script>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Context Fix Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config></mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Object
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    log_result("Testing different Context.__iter__ approaches...")
+    
+    # Approach 1: Return a simple Python iterator (not a class)
+    class FixedContext1:
+        def __init__(self, js_context):
+            self._js_context = js_context
+        
+        def __iter__(self):
+            def context_generator():
+                # Infinite generator like Crank contexts
+                while True:
+                    if hasattr(self._js_context, 'props'):
+                        props = self._js_context.props
+                        yield dict(props) if props else {}
+                    else:
+                        yield {}
+            
+            return context_generator()
+    
+    log_result("Approach 1: Generator-based iterator")
+    
+    mock_js_ctx = Object.new()
+    mock_js_ctx.props = Object.new()
+    
+    ctx1 = FixedContext1(mock_js_ctx)
+    
+    try:
+        count = 0
+        for props in ctx1:
+            log_result(f"  ✅ Iteration {count}: {props}")
+            count += 1
+            if count >= 2:
+                break
+        log_result("✅ Approach 1 works!")
+    except Exception as e:
+        log_result(f"❌ Approach 1 failed: {e}")
+    
+    # Approach 2: Use a simple list iterator  
+    class FixedContext2:
+        def __init__(self, js_context):
+            self._js_context = js_context
+        
+        def __iter__(self):
+            # Return iterator over an infinite-ish list
+            props = {}
+            if hasattr(self._js_context, 'props'):
+                js_props = self._js_context.props
+                props = dict(js_props) if js_props else {}
+            
+            # Create a list with many copies (simulates infinite)
+            props_list = [props] * 1000
+            return iter(props_list)
+    
+    log_result("Approach 2: List-based iterator")
+    
+    ctx2 = FixedContext2(mock_js_ctx)
+    
+    try:
+        count = 0
+        for props in ctx2:
+            log_result(f"  ✅ Iteration {count}: {props}")
+            count += 1
+            if count >= 2:
+                break
+        log_result("✅ Approach 2 works!")
+    except Exception as e:
+        log_result(f"❌ Approach 2 failed: {e}")
+    
+    # Test with the working approach in a component-like function
+    log_result("Testing with component-like function...")
+    
+    def test_component(ctx):
+        log_result("  Component called")
+        for props in ctx:
+            log_result("  In component iteration")
+            yield f"Component result: {props}"
+            break
+    
+    try:
+        gen = test_component(ctx1)  # Use the working context
+        result = next(gen)
+        log_result(f"✅ Component test succeeded: {result}")
+    except Exception as e:
+        log_result(f"❌ Component test failed: {e}")
+        
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+
+log_result("Context fix test completed")
+    </script>
+</body>
+</html>

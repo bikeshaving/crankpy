@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>MicroPython Iteration Workarounds</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/dom.py": "crank/dom.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+# Workaround 1: Delay Symbol access until absolutely needed
+log_result("🛠️ Workaround 1: Delay Symbol access...")
+
+try:
+    class LazySymbolWrapper:
+        def __init__(self, python_generator):
+            self.python_generator = python_generator
+            # Don't access Symbol.iterator in __init__!
+            self._symbol_cache = None
+            self._iterator_cache = None
+        
+        def _get_symbol_iterator(self):
+            if self._symbol_cache is None:
+                from js import Symbol
+                self._symbol_cache = Symbol.iterator
+            return self._symbol_cache
+        
+        def __getitem__(self, key):
+            # Only access Symbol when actually needed
+            symbol_iterator = self._get_symbol_iterator()
+            
+            # Use string comparison to avoid proxy issues
+            try:
+                key_str = str(key)
+                symbol_str = str(symbol_iterator)
+                if key_str == symbol_str:
+                    log_result("LazySymbolWrapper: Symbol.iterator detected")
+                    return self._create_iterator_function()
+            except:
+                pass
+            
+            raise KeyError(f"LazySymbolWrapper: Unsupported key {key}")
+        
+        def _create_iterator_function(self):
+            if self._iterator_cache is None:
+                from pyscript.ffi import create_proxy
+                
+                def iterator_function():
+                    class Iterator:
+                        def __init__(self, gen):
+                            self.gen = gen
+                        def next(self):
+                            try:
+                                value = next(self.gen)
+                                return {"value": value, "done": False}
+                            except StopIteration:
+                                return {"value": None, "done": True}
+                    return Iterator(self.python_generator)
+                
+                self._iterator_cache = create_proxy(iterator_function)
+            return self._iterator_cache
+    
+    log_result("✅ LazySymbolWrapper created without error")
+    
+except Exception as e:
+    log_result(f"❌ Workaround 1 failed: {e}")
+
+# Workaround 2: Pure JavaScript approach
+log_result("🛠️ Workaround 2: Pure JavaScript iterator...")
+
+try:
+    class JSOnlyWrapper:
+        def __init__(self, python_generator):
+            self.python_generator = python_generator
+        
+        def __getitem__(self, key):
+            # Use JavaScript eval to handle everything
+            from js import eval as js_eval
+            
+            js_code = f"""
+            (function(pythonKey, pythonGen) {{
+                if (pythonKey === Symbol.iterator) {{
+                    return function() {{
+                        return {{
+                            next: function() {{
+                                try {{
+                                    const value = pythonGen.__next__();
+                                    return {{ value: value, done: false }};
+                                }} catch (e) {{
+                                    return {{ value: undefined, done: true }};
+                                }}
+                            }}
+                        }};
+                    }};
+                }}
+                throw new Error('Not Symbol.iterator');
+            }})
+            """
+            
+            js_func = js_eval(js_code)
+            return js_func(key, self.python_generator)
+    
+    log_result("✅ JSOnlyWrapper created without error")
+    
+except Exception as e:
+    log_result(f"❌ Workaround 2 failed: {e}")
+
+# Workaround 3: Avoid generators altogether
+log_result("🛠️ Workaround 3: Array-based approach...")
+
+try:
+    class ArrayWrapper:
+        def __init__(self, python_generator):
+            # Convert generator to list immediately
+            self.items = list(python_generator)
+        
+        def __getitem__(self, key):
+            from js import Symbol, eval as js_eval
+            from pyscript.ffi import to_js, create_proxy
+            
+            # Simple comparison
+            if key == Symbol.iterator:
+                log_result("ArrayWrapper: Symbol.iterator detected")
+                
+                # Convert to JavaScript array
+                js_array = to_js(self.items)
+                
+                # Use JavaScript's native array iterator
+                js_code = """
+                (function(jsArray) {
+                    return function() {
+                        return jsArray[Symbol.iterator]();
+                    };
+                })
+                """
+                
+                js_func = js_eval(js_code)
+                return js_func(js_array)
+            
+            raise KeyError(f"ArrayWrapper: Unsupported key {key}")
+    
+    log_result("✅ ArrayWrapper created without error")
+    
+except Exception as e:
+    log_result(f"❌ Workaround 3 failed: {e}")
+
+# Test all workarounds
+log_result("🧪 Testing workarounds...")
+
+from js import Symbol
+from pyscript.ffi import create_proxy
+
+def test_generator():
+    yield "test1"
+    yield "test2"
+
+# Test each wrapper
+wrappers = [
+    ("LazySymbolWrapper", LazySymbolWrapper),
+    ("JSOnlyWrapper", JSOnlyWrapper), 
+    ("ArrayWrapper", ArrayWrapper)
+]
+
+for name, wrapper_class in wrappers:
+    try:
+        log_result(f"Testing {name}...")
+        wrapper = wrapper_class(test_generator())
+        
+        iterator_func = wrapper[Symbol.iterator]
+        log_result(f"✅ {name} Symbol.iterator: {type(iterator_func)}")
+        
+        iterator = iterator_func()
+        result = iterator.next()
+        log_result(f"✅ {name} iteration: {result}")
+        
+    except Exception as e:
+        log_result(f"❌ {name} failed: {e}")
+
+log_result("Workaround tests completed")
+    </script>
+</body>
+</html>

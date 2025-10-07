@@ -1,0 +1,56 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>MicroPython Typing Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div class='result'>{message}</div>"
+
+try:
+    # Test importing our typing stub
+    from crank.typing_stub import Any, Dict, List, TypeVar, Generic, TypedDict
+    log_result("✅ typing_stub imports successful")
+    
+    # Test basic functionality - subscripting expected to fail in MicroPython
+    try:
+        test_dict = Dict[str, int]  # This will fail in MicroPython
+        log_result("⚠️ Dict subscript works (unexpected in MicroPython)")
+    except TypeError as te:
+        if "isn't subscriptable" in str(te):
+            log_result("✅ Dict subscript fails as expected in MicroPython")
+        else:
+            log_result(f"❌ Unexpected TypeError: {te}")
+    
+except Exception as e:
+    log_result(f"❌ typing_stub test failed: {e}")
+    log_result(f"Python implementation: {sys.implementation.name}")
+    
+# Test that we can detect MicroPython
+if sys.implementation.name == 'micropython':
+    log_result("✅ Running on MicroPython")
+else:
+    log_result(f"❌ Expected MicroPython, got {sys.implementation.name}")
+    </script>
+</body>
+</html>

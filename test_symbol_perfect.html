@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Perfect Symbol Mapping</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/dom.py": "crank/dom.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Symbol
+from pyscript.ffi import create_proxy
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    log_result("🎯 Creating perfect Symbol.iterator mapping...")
+    
+    # Perfect implementation that maps Symbol.iterator to __iter__
+    class PerfectIterableGenerator:
+        def __init__(self, items):
+            self.items = items
+        
+        def __iter__(self):
+            """Standard Python iterator"""
+            log_result("  PerfectIterableGenerator.__iter__ called")
+            return iter(self.items)
+        
+        def __getitem__(self, key):
+            """Handle Symbol.iterator access"""
+            log_result(f"  __getitem__({key}) [type: {type(key)}]")
+            
+            # Direct Symbol.iterator mapping
+            if key == Symbol.iterator:
+                log_result("  🎯 Symbol.iterator mapped to __iter__!")
+                
+                def js_iterator_function():
+                    """JavaScript iterator function that returns iterator object"""
+                    log_result("    js_iterator_function called")
+                    
+                    class JSIterator:
+                        def __init__(self, python_iterable):
+                            log_result("    JSIterator created")
+                            self.python_iterator = iter(python_iterable)
+                        
+                        def next(self):
+                            """JavaScript iterator protocol: return {value, done}"""
+                            try:
+                                value = next(self.python_iterator)
+                                log_result(f"    JSIterator.next() -> {value}")
+                                return {"value": value, "done": False}
+                            except StopIteration:
+                                log_result("    JSIterator.next() -> DONE")
+                                return {"value": None, "done": True}
+                    
+                    # Return the iterator object
+                    return JSIterator(self.items)
+                
+                # Return the iterator function (proxy it for JavaScript)
+                return create_proxy(js_iterator_function)
+            
+            # Handle any other key access
+            raise KeyError(f"Unsupported key: {key}")
+    
+    # Test 1: Create our perfect iterable
+    fibonacci_sequence = [0, 1, 1, 2, 3, 5, 8, 13]
+    perfect_iterable = PerfectIterableGenerator(fibonacci_sequence)
+    
+    log_result("✅ PerfectIterableGenerator created")
+    
+    # Test 2: Verify Python iteration works
+    log_result("Testing Python iteration:")
+    python_results = []
+    for item in perfect_iterable:
+        python_results.append(item)
+        if len(python_results) >= 3:  # Just test first 3
+            break
+    log_result(f"Python iteration results: {python_results}")
+    
+    # Test 3: Test Symbol.iterator access
+    log_result("=== Testing Symbol.iterator access ===")
+    try:
+        iterator_func = perfect_iterable[Symbol.iterator]
+        log_result(f"✅ Symbol.iterator function: {type(iterator_func)}")
+        
+        # Test creating JavaScript iterator
+        js_iterator = iterator_func()
+        log_result(f"✅ JavaScript iterator: {type(js_iterator)}")
+        
+        # Test JavaScript iteration protocol manually
+        log_result("Testing JavaScript iterator protocol:")
+        js_results = []
+        for i in range(5):  # Test 5 iterations
+            result = js_iterator.next()
+            log_result(f"  Iteration {i}: {result}")
+            if result["done"]:
+                break
+            js_results.append(result["value"])
+        
+        log_result(f"✅ JavaScript iteration results: {js_results}")
+        
+    except Exception as e:
+        log_result(f"❌ Symbol.iterator test failed: {e}")
+        import traceback
+        log_result(f"Traceback: {traceback.format_exc()}")
+    
+    # Test 4: Test with create_proxy to see if Crank.js can use it
+    log_result("=== Testing with create_proxy ===")
+    
+    try:
+        proxied_perfect = create_proxy(perfect_iterable)
+        log_result(f"Proxied object: {type(proxied_perfect)}")
+        
+        # Test if the proxied version still works
+        proxied_iter_func = proxied_perfect[Symbol.iterator]
+        log_result(f"✅ Proxied Symbol.iterator: {type(proxied_iter_func)}")
+        
+        proxied_js_iterator = proxied_iter_func()
+        log_result(f"✅ Proxied JS iterator: {type(proxied_js_iterator)}")
+        
+        # Test one iteration
+        first_result = proxied_js_iterator.next()
+        log_result(f"✅ Proxied first result: {first_result}")
+        
+    except Exception as e:
+        log_result(f"❌ Proxy test failed: {e}")
+        import traceback
+        log_result(f"Proxy traceback: {traceback.format_exc()}")
+    
+    # Test 5: Create a generator version for component use
+    log_result("=== Testing generator wrapper ===")
+    
+    def create_iterable_generator(generator_func):
+        """Wrap a generator function to be JavaScript iterable"""
+        
+        class GeneratorWrapper:
+            def __init__(self, gen_func):
+                self.gen_func = gen_func
+            
+            def __getitem__(self, key):
+                if key == Symbol.iterator:
+                    def js_iterator_function():
+                        class JSIterator:
+                            def __init__(self, gen):
+                                self.gen = gen
+                            
+                            def next(self):
+                                try:
+                                    value = next(self.gen)
+                                    return {"value": value, "done": False}
+                                except StopIteration:
+                                    return {"value": None, "done": True}
+                        
+                        return JSIterator(self.gen_func())
+                    
+                    return create_proxy(js_iterator_function)
+                
+                raise KeyError(f"Unsupported key: {key}")
+        
+        return GeneratorWrapper(gen_func)
+    
+    # Test the generator wrapper
+    def test_generator():
+        for i in range(3):
+            yield f"Generated item {i}"
+    
+    wrapped_generator = create_iterable_generator(test_generator)
+    log_result("Generator wrapper created")
+    
+    try:
+        gen_iter_func = wrapped_generator[Symbol.iterator]
+        gen_iterator = gen_iter_func()
+        
+        gen_result1 = gen_iterator.next()
+        gen_result2 = gen_iterator.next()
+        
+        log_result(f"✅ Generator test 1: {gen_result1}")
+        log_result(f"✅ Generator test 2: {gen_result2}")
+        
+    except Exception as e:
+        log_result(f"❌ Generator wrapper failed: {e}")
+        
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+    import traceback
+    log_result(f"Traceback: {traceback.format_exc()}")
+
+log_result("Perfect Symbol mapping test completed")
+    </script>
+</body>
+</html>

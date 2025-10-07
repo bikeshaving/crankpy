@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Context Direct Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Object
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    from crank import Context
+    
+    log_result("Testing our fixed Context directly...")
+    
+    # Create mock context
+    mock_js_ctx = Object.new()
+    mock_js_ctx.props = Object.new()
+    
+    # Create our Context
+    ctx = Context(mock_js_ctx)
+    log_result(f"Context created: {type(ctx)}")
+    
+    # Test iteration directly
+    log_result("Testing direct iteration...")
+    try:
+        count = 0
+        for props in ctx:
+            log_result(f"  Direct iteration {count}: {props}")
+            count += 1
+            if count >= 2:
+                break
+        log_result("✅ Direct Context iteration works!")
+    except Exception as e:
+        log_result(f"❌ Direct Context iteration failed: {e}")
+    
+    # Test what our __iter__ returns
+    log_result("Inspecting __iter__ result...")
+    try:
+        iterator = iter(ctx)
+        log_result(f"Iterator type: {type(iterator)}")
+        
+        # Check if it's a generator
+        is_generator = hasattr(iterator, 'send') and hasattr(iterator, '__next__')
+        log_result(f"Is generator: {is_generator}")
+        
+        # Try getting first item
+        first_item = next(iterator)
+        log_result(f"First item: {first_item}")
+        
+    except Exception as e:
+        log_result(f"❌ Iterator inspection failed: {e}")
+    
+    # Test in a simple function (not component)
+    log_result("Testing in simple function...")
+    
+    def simple_function(ctx):
+        log_result("  Simple function called")
+        for props in ctx:
+            log_result("  Simple function iteration")
+            yield f"Simple result: {props}"
+            break
+    
+    try:
+        gen = simple_function(ctx)
+        result = next(gen)
+        log_result(f"✅ Simple function works: {result}")
+    except Exception as e:
+        log_result(f"❌ Simple function failed: {e}")
+    
+    # Test exactly what the component wrapper does
+    log_result("Testing component wrapper pattern...")
+    
+    def wrapper_pattern(props, ctx_param):
+        log_result("  Wrapper pattern called")
+        wrapped_ctx = Context(ctx_param)
+        
+        def inner_function(ctx):
+            log_result("    Inner function called")
+            for props in ctx:
+                log_result("    Inner function iteration")
+                yield f"Wrapper result: {props}"
+                break
+        
+        return inner_function(wrapped_ctx)
+    
+    try:
+        gen = wrapper_pattern(mock_js_ctx.props, mock_js_ctx)
+        result = next(gen)
+        log_result(f"✅ Wrapper pattern works: {result}")
+    except Exception as e:
+        log_result(f"❌ Wrapper pattern failed: {e}")
+        
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+
+log_result("Context direct test completed")
+    </script>
+</body>
+</html>

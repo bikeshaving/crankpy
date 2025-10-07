@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Direct Access Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Symbol, window, eval as js_eval
+from pyscript.ffi import to_js
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    # Inject helper function
+    js_eval("""
+    window.crankPyCreateIterable = function(items) {
+        return {
+            [Symbol.iterator]: function() {
+                let index = 0;
+                return {
+                    next: function() {
+                        if (index < items.length) {
+                            return { value: items[index++], done: false };
+                        } else {
+                            return { value: undefined, done: true };
+                        }
+                    }
+                };
+            }
+        };
+    };
+    """)
+    
+    # Create an iterable
+    python_items = ["test1", "test2", "test3"]
+    js_items = to_js(python_items)
+    iterable = window.crankPyCreateIterable(js_items)
+    
+    log_result(f"Iterable created: {type(iterable)}")
+    
+    # Try different ways to access Symbol.iterator
+    iterator_symbol = Symbol.iterator
+    log_result(f"Symbol.iterator: {type(iterator_symbol)}")
+    
+    # Method 1: Using 'in' operator (we know this fails)
+    has_iterator_in = iterator_symbol in iterable
+    log_result(f"Method 1 - 'in' operator: {has_iterator_in}")
+    
+    # Method 2: Try direct getattr
+    try:
+        iterator_method = getattr(iterable, iterator_symbol, None)
+        log_result(f"Method 2 - getattr result: {iterator_method is not None}")
+    except Exception as e:
+        log_result(f"Method 2 - getattr failed: {e}")
+    
+    # Method 3: Try bracket notation
+    try:
+        iterator_method = iterable[iterator_symbol]
+        log_result(f"Method 3 - bracket notation works: {iterator_method is not None}")
+        
+        if iterator_method:
+            log_result("✅ SUCCESS! Bracket notation works!")
+            
+            # Try to use it
+            log_result("Testing iteration...")
+            iterator = iterator_method()
+            log_result(f"Iterator created: {type(iterator)}")
+            
+            # Try iteration
+            result1 = iterator.next()
+            log_result(f"First next(): value={result1.value}, done={result1.done}")
+            
+            result2 = iterator.next()
+            log_result(f"Second next(): value={result2.value}, done={result2.done}")
+            
+            result3 = iterator.next()
+            log_result(f"Third next(): value={result3.value}, done={result3.done}")
+            
+            result4 = iterator.next()
+            log_result(f"Fourth next(): value={result4.value}, done={result4.done}")
+            
+            log_result("🎉 FULL SUCCESS! Iteration works completely!")
+        
+    except Exception as e:
+        log_result(f"Method 3 - bracket notation failed: {e}")
+    
+    # Method 4: Test if Crank.js can use it
+    log_result("Testing Crank.js compatibility...")
+    
+    crank_test = js_eval("""
+    (function(iterable) {
+        try {
+            // This is what Crank.js does
+            const iterator = iterable[Symbol.iterator]();
+            const results = [];
+            let result = iterator.next();
+            while (!result.done) {
+                results.push(result.value);
+                result = iterator.next();
+            }
+            return { success: true, results: results };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    })
+    """)
+    
+    crank_result = crank_test(iterable)
+    log_result(f"Crank.js test success: {crank_result.success}")
+    
+    if crank_result.success:
+        log_result(f"✅ Crank.js results: {crank_result.results}")
+        log_result("🚀 READY FOR CRANK.JS!")
+    else:
+        log_result(f"❌ Crank.js test failed: {crank_result.error}")
+        
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+
+log_result("Direct access test completed")
+    </script>
+</body>
+</html>

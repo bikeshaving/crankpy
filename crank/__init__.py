@@ -42,14 +42,52 @@ except ImportError:
 try:
     from pyodide.ffi import JsProxy
 except ImportError:
-    # MicroPython doesn't have pyodide.ffi
-    if sys.implementation.name == 'micropython':
-        JsProxy = object  # Fallback type for MicroPython
-    else:
-        raise
+    # MicroPython and regular Python don't have pyodide.ffi
+    JsProxy = object  # Fallback type
 
-from pyscript.ffi import create_proxy, to_js
-from pyscript.js_modules import crank_core as crank
+# Import PyScript modules only when available (browser environment)
+try:
+    from pyscript.ffi import create_proxy, to_js
+    from pyscript.js_modules import crank_core as crank
+    
+    _PYSCRIPT_AVAILABLE = True
+except ImportError:
+    # Regular Python environment - create mock functions for testing
+    _PYSCRIPT_AVAILABLE = False
+    
+    def create_proxy(func):
+        """Mock create_proxy for testing environments"""
+        return func
+    
+    def to_js(obj):
+        """Mock to_js for testing environments"""
+        return obj
+    
+    # Mock crank_core for testing
+    class _MockCrank:
+        class Element:
+            pass
+        
+        @staticmethod
+        def createElement(*args):
+            return _MockCrank.Element()
+        
+        class Fragment:
+            pass
+            
+        class Portal:
+            pass
+            
+        class Copy:
+            pass
+            
+        class Raw:
+            pass
+            
+        class Text:
+            pass
+    
+    crank = _MockCrank()
 
 # Global variable to track if we've patched the as_object_map type yet
 _as_object_map_type_patched = False
@@ -150,13 +188,49 @@ class Context(_ContextBase):
             self._cleanup = self._cleanup.bind(js_context)
 
         # Copy over all properties from JS context (except deprecated ones)
-        for attr in dir(js_context):
-            if not attr.startswith('_') and attr not in ['refresh', 'schedule', 'after', 'cleanup', 'value']:
-                try:
-                    value = getattr(js_context, attr)
-                    setattr(self, attr, value)
-                except Exception:
-                    pass
+        # In MicroPython, dir() on JsProxy triggers js_get_iter bug, so use JavaScript approach
+        if sys.implementation.name == 'micropython':
+            try:
+                # Use JavaScript to safely enumerate properties
+                from js import eval as js_eval
+                js_code = """
+                (function(jsObj) {
+                    const props = [];
+                    for (const key in jsObj) {
+                        if (typeof key === 'string' && !key.startsWith('_') && 
+                            !['refresh', 'schedule', 'after', 'cleanup', 'value'].includes(key)) {
+                            props.push(key);
+                        }
+                    }
+                    return props;
+                })
+                """
+                get_props = js_eval(js_code)
+                attrs = get_props(js_context)
+                
+                # Convert to Python list if needed
+                if hasattr(attrs, 'to_py'):
+                    attrs = attrs.to_py()
+                elif hasattr(attrs, '__iter__'):
+                    attrs = list(attrs)
+                else:
+                    attrs = []
+                    
+            except Exception:
+                # Fallback to empty list if JavaScript enumeration fails
+                attrs = []
+        else:
+            # Pyodide: Use normal dir() which works fine
+            attrs = [attr for attr in dir(js_context) 
+                    if not attr.startswith('_') and attr not in ['refresh', 'schedule', 'after', 'cleanup', 'value']]
+        
+        # Copy the enumerated attributes
+        for attr in attrs:
+            try:
+                value = getattr(js_context, attr)
+                setattr(self, attr, value)
+            except Exception:
+                pass
 
     def refresh(self, func=None):
         """Can be used as a method call or decorator"""
@@ -201,61 +275,98 @@ class Context(_ContextBase):
 
     def __iter__(self) -> Iterator[T]:
         """Custom iterator that avoids deprecated ctx.value access"""
-        # Instead of calling iter(self._js_context) which triggers ctx.value,
-        # we implement our own iterator that works with Crank's for-of pattern
-        class ContextIterator:
-            def __init__(self, js_context):
-                self.js_context = js_context
-                self.done = False
-
-            def __iter__(self) -> Iterator[T]:
-                return self
-
-            def __next__(self) -> T:
-                # Crank.js contexts yield props indefinitely in for-of loops
-                # We don't call next() on the JS iterator to avoid ctx.value access
-                if hasattr(self.js_context, 'props'):
-                    props = self.js_context.props
+        # Use generator instead of class-based iterator for MicroPython compatibility
+        # Class-based iterators get proxied to JavaScript in MicroPython PyScript
+        def context_generator():
+            # Crank.js contexts yield props indefinitely in for-of loops
+            while True:
+                if hasattr(self._js_context, 'props'):
+                    props = self._js_context.props
                     # Convert JsProxy to Python dict for dual runtime compatibility
                     if hasattr(props, 'to_py'):
                         # Pyodide: Use to_py() method
-                        return props.to_py() if props else {}  # type: ignore[return-value]
+                        yield props.to_py() if props else {}  # type: ignore[misc]
                     else:
-                        # MicroPython: Convert or use as-is if already dict
-                        return dict(props) if props else {}  # type: ignore[return-value]
+                        # MicroPython: Use safe conversion to avoid dict() iteration bug
+                        if props:
+                            try:
+                                from js import eval as js_eval
+                                js_code = """
+                                (function(jsObj) {
+                                    if (!jsObj) return {};
+                                    const result = {};
+                                    for (const key in jsObj) {
+                                        if (jsObj.hasOwnProperty(key)) {
+                                            result[key] = jsObj[key];
+                                        }
+                                    }
+                                    return result;
+                                })
+                                """
+                                convert_obj = js_eval(js_code)
+                                js_dict = convert_obj(props)
+                                if hasattr(js_dict, 'to_py'):
+                                    yield js_dict.to_py()  # type: ignore[misc]
+                                else:
+                                    yield {}  # type: ignore[misc]
+                            except Exception:
+                                yield {}  # type: ignore[misc]
+                        else:
+                            yield {}  # type: ignore[misc]
                 else:
-                    return {}  # type: ignore[return-value]
+                    yield {}  # type: ignore[misc]
 
-        return ContextIterator(self._js_context)
+        generator = context_generator()
+        
+        # Apply SymbolIteratorWrapper in MicroPython to fix iteration bugs
+        if sys.implementation.name == 'micropython':
+            return SymbolIteratorWrapper(generator)
+        else:
+            return generator
 
     def __aiter__(self) -> AsyncIterator[T]:
         """Custom async iterator that avoids deprecated ctx.value access"""
-        # Instead of calling aiter(self._js_context) which triggers ctx.value,
-        # implement our own async iterator
-        class AsyncContextIterator:
-            def __init__(self, js_context):
-                self.js_context = js_context
-                self.done = False
-
-            def __aiter__(self) -> AsyncIterator[T]:
-                return self
-
-            async def __anext__(self) -> T:
-                # Crank.js async iterators should yield continuously for "continuous mode"
-                # This enables racing and cooperative rendering patterns
-                if hasattr(self.js_context, 'props'):
-                    props = self.js_context.props
+        # Use async generator instead of class-based iterator for MicroPython compatibility
+        async def async_context_generator():
+            # Crank.js async iterators should yield continuously for "continuous mode"
+            while True:
+                if hasattr(self._js_context, 'props'):
+                    props = self._js_context.props
                     # Convert JsProxy to Python dict for dual runtime compatibility
                     if hasattr(props, 'to_py'):
                         # Pyodide: Use to_py() method
-                        return props.to_py() if props else {}  # type: ignore[return-value]
+                        yield props.to_py() if props else {}  # type: ignore[misc]
                     else:
-                        # MicroPython: Convert or use as-is if already dict
-                        return dict(props) if props else {}  # type: ignore[return-value]
+                        # MicroPython: Use safe conversion to avoid dict() iteration bug
+                        if props:
+                            try:
+                                from js import eval as js_eval
+                                js_code = """
+                                (function(jsObj) {
+                                    if (!jsObj) return {};
+                                    const result = {};
+                                    for (const key in jsObj) {
+                                        if (jsObj.hasOwnProperty(key)) {
+                                            result[key] = jsObj[key];
+                                        }
+                                    }
+                                    return result;
+                                })
+                                """
+                                convert_obj = js_eval(js_code)
+                                js_dict = convert_obj(props)
+                                if hasattr(js_dict, 'to_py'):
+                                    yield js_dict.to_py()  # type: ignore[misc]
+                                else:
+                                    yield {}  # type: ignore[misc]
+                            except Exception:
+                                yield {}  # type: ignore[misc]
+                        else:
+                            yield {}  # type: ignore[misc]
                 else:
-                    return {}  # type: ignore[return-value]
+                    yield {}  # type: ignore[misc]
 
-        return AsyncContextIterator(self._js_context)
+        return async_context_generator()
 
     @property
     def props(self) -> T:
@@ -267,8 +378,38 @@ class Context(_ContextBase):
                 # Pyodide: Use to_py() method
                 return props.to_py() if props else {}  # type: ignore[return-value]
             else:
-                # MicroPython: Convert or use as-is if already dict
-                return dict(props) if props else {}  # type: ignore[return-value]
+                # MicroPython: Use JavaScript to convert object to avoid dict() iteration bug
+                if props and sys.implementation.name == 'micropython':
+                    try:
+                        from js import eval as js_eval
+                        js_code = """
+                        (function(jsObj) {
+                            if (!jsObj) return {};
+                            const result = {};
+                            for (const key in jsObj) {
+                                if (jsObj.hasOwnProperty(key)) {
+                                    result[key] = jsObj[key];
+                                }
+                            }
+                            return result;
+                        })
+                        """
+                        convert_obj = js_eval(js_code)
+                        js_dict = convert_obj(props)
+                        
+                        # Convert to Python dict safely
+                        if hasattr(js_dict, 'to_py'):
+                            # PyScript's to_py() method should work safely
+                            return js_dict.to_py()  # type: ignore[return-value]
+                        else:
+                            # Fallback: return empty dict if no to_py method
+                            return {}  # type: ignore[return-value]
+                    except Exception:
+                        # Fallback to empty dict if JavaScript conversion fails
+                        return {}  # type: ignore[return-value]
+                else:
+                    # MicroPython with null/empty props, or non-MicroPython fallback
+                    return {}  # type: ignore[return-value]
         return {}  # type: ignore[return-value]
 
     def __getattr__(self, name):
@@ -278,7 +419,108 @@ class Context(_ContextBase):
         return getattr(self._js_context, name)
 
 
+# Symbol.iterator wrapper for MicroPython generators
+class SymbolIteratorWrapper:
+    """Wrapper that makes Python generators compatible with JavaScript Symbol.iterator protocol"""
+    
+    def __init__(self, python_generator):
+        self.python_generator = python_generator
+        # Mark as wrapped to prevent double-wrapping
+        self._is_symbol_iterator_wrapped = True
+    
+    def __getitem__(self, key):
+        """Handle Symbol.iterator access using pure JavaScript approach"""
+        # Use JavaScript eval to handle everything (workaround for MicroPython iteration bugs)
+        from js import eval as js_eval
+        
+        js_code = """
+        (function(pythonKey, pythonGen) {
+            if (pythonKey === Symbol.iterator) {
+                return function() {
+                    return {
+                        next: function() {
+                            try {
+                                const value = pythonGen.__next__();
+                                return { value: value, done: false };
+                            } catch (e) {
+                                return { value: undefined, done: true };
+                            }
+                        }
+                    };
+                };
+            }
+            throw new Error('SymbolIteratorWrapper: Not Symbol.iterator');
+        })
+        """
+        
+        try:
+            js_func = js_eval(js_code)
+            return js_func(key, self.python_generator)
+        except Exception:
+            raise KeyError(f"SymbolIteratorWrapper: Unsupported key {key}")
+    
+    def __iter__(self):
+        """Return self for Python iteration protocol"""
+        return self
+    
+    def __next__(self):
+        """Make this a proper Python iterator"""
+        return next(self.python_generator)
+    
+    def __repr__(self):
+        return f"SymbolIteratorWrapper({self.python_generator})"
+
+
 # Component decorator
+# JavaScript helper for creating proper iterables in MicroPython
+def _ensure_iterable_helper():
+    """Ensure the JavaScript iterable helper function exists"""
+    from js import window
+    
+    # Check if helper already exists
+    if not hasattr(window, 'crankPyCreateIterable'):
+        # Inject the helper function into global scope
+        from js import eval as js_eval
+        js_eval("""
+        window.crankPyCreateIterable = function(items) {
+            return {
+                [Symbol.iterator]: function() {
+                    let index = 0;
+                    return {
+                        next: function() {
+                            if (index < items.length) {
+                                return { value: items[index++], done: false };
+                            } else {
+                                return { value: undefined, done: true };
+                            }
+                        }
+                    };
+                }
+            };
+        };
+        """)
+
+def create_js_iterable(generator_or_value):
+    """Create a JavaScript-compatible iterable from a Python generator or value"""
+    from pyscript.ffi import to_js
+    from js import window
+    
+    # Ensure helper function exists
+    _ensure_iterable_helper()
+    
+    # Convert generator to list of items
+    if hasattr(generator_or_value, 'send') or hasattr(generator_or_value, '__next__'):
+        # It's a generator, convert to list
+        items = list(generator_or_value)
+    else:
+        # Single value, wrap in list
+        items = [generator_or_value]
+    
+    # Convert to JavaScript array and create proper iterable
+    js_items = to_js(items)
+    return window.crankPyCreateIterable(js_items)
+
+
 def component(func: Callable) -> Callable:
     """Universal component decorator for any function type"""
 
@@ -318,18 +560,56 @@ def component(func: Callable) -> Callable:
             # Pyodide: Use to_py() method
             python_props = props.to_py() if props else {}
         else:
-            # MicroPython: Convert or use as-is if already dict
-            python_props = dict(props) if props else {}
+            # MicroPython: Use safe conversion to avoid dict() iteration bug
+            if props and sys.implementation.name == 'micropython':
+                try:
+                    from js import eval as js_eval
+                    js_code = """
+                    (function(jsObj) {
+                        if (!jsObj) return {};
+                        const result = {};
+                        for (const key in jsObj) {
+                            if (jsObj.hasOwnProperty(key)) {
+                                result[key] = jsObj[key];
+                            }
+                        }
+                        return result;
+                    })
+                    """
+                    convert_obj = js_eval(js_code)
+                    js_dict = convert_obj(props)
+                    if hasattr(js_dict, 'to_py'):
+                        python_props = js_dict.to_py()
+                    else:
+                        python_props = {}
+                except Exception:
+                    python_props = {}
+            else:
+                python_props = {}
+
+        def wrap_result(result):
+            """Wrap generator results for JavaScript interop in MicroPython"""
+            # Check if already wrapped to prevent double-wrapping
+            if hasattr(result, '_is_symbol_iterator_wrapped'):
+                return result
+            
+            # Check if we're in MicroPython and result needs wrapping
+            if (sys.implementation.name == 'micropython' and 
+                (hasattr(result, 'send') or hasattr(result, '__next__') or 
+                 hasattr(result, 'asend') or hasattr(result, '__anext__'))):
+                # Use Symbol.iterator mapping instead of JavaScript helper
+                return SymbolIteratorWrapper(result)
+            return result
 
         # Check if we have cached parameter count
         if cached_param_count is not None:
             # Use cached parameter count
             if cached_param_count == 0:
-                return func()
+                return wrap_result(func())
             elif cached_param_count == 1:
-                return func(wrapped_ctx)
+                return wrap_result(func(wrapped_ctx))
             else:  # cached_param_count == 2
-                return func(wrapped_ctx, python_props)
+                return wrap_result(func(wrapped_ctx, python_props))
         else:
             # MicroPython runtime - determine parameter count on first call
             # Try different parameter counts and cache the successful one
@@ -344,7 +624,7 @@ def component(func: Callable) -> Callable:
 
                     # Success! Cache this parameter count for future calls
                     cached_param_count = test_count
-                    return result
+                    return wrap_result(result)
 
                 except TypeError as e:
                     # Check if this looks like a parameter count error

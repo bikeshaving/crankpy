@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Isolated Issue Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config></mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Object
+from pyscript.ffi import create_proxy
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    log_result("Step 1: Testing the exact component pattern that fails...")
+    
+    # Recreate the minimal Context class
+    class SimpleContext:
+        def __init__(self, js_context):
+            self._js_context = js_context
+        
+        def __iter__(self):
+            class ContextIterator:
+                def __init__(self, js_context):
+                    self.js_context = js_context
+                
+                def __iter__(self):
+                    return self
+                
+                def __next__(self):
+                    # Return props indefinitely (like Crank.js contexts do)
+                    if hasattr(self.js_context, 'props'):
+                        props = self.js_context.props
+                        return dict(props) if props else {}
+                    return {}
+            
+            return ContextIterator(self._js_context)
+    
+    log_result("SimpleContext defined")
+    
+    # Test the exact pattern that fails
+    def problematic_function(ctx):
+        log_result("  Function called")
+        log_result("  About to iterate over ctx...")
+        
+        # This is the exact line that should be causing the error
+        for props in ctx:
+            log_result("  In iteration loop")
+            yield f"Result: {props}"
+            break  # Only do one iteration
+    
+    log_result("Function defined")
+    
+    # Test without wrapping in @component first
+    log_result("Step 2: Testing function directly...")
+    
+    mock_js_ctx = Object.new()
+    mock_js_ctx.props = Object.new()
+    simple_ctx = SimpleContext(mock_js_ctx)
+    
+    try:
+        gen = problematic_function(simple_ctx)
+        log_result(f"✅ Direct call succeeded: {type(gen)}")
+        
+        # Try to get first result
+        first_result = next(gen)
+        log_result(f"✅ First result: {first_result}")
+        
+    except Exception as e:
+        log_result(f"❌ Direct call failed: {e}")
+    
+    # Test with proxy (like @component does)
+    log_result("Step 3: Testing function with proxy...")
+    
+    def wrapper(props, ctx):
+        log_result("  Wrapper called")
+        wrapped_ctx = SimpleContext(ctx)
+        return problematic_function(wrapped_ctx)
+    
+    proxied_wrapper = create_proxy(wrapper)
+    
+    try:
+        result = proxied_wrapper(mock_js_ctx.props, mock_js_ctx)
+        log_result(f"✅ Proxied call succeeded: {type(result)}")
+    except Exception as e:
+        log_result(f"❌ Proxied call failed: {e}")
+    
+    # Test with actual generator consumption (what Crank.js would do)
+    log_result("Step 4: Testing generator consumption...")
+    
+    def wrapper_with_consumption(props, ctx):
+        log_result("  Wrapper with consumption called")
+        wrapped_ctx = SimpleContext(ctx)
+        gen = problematic_function(wrapped_ctx)
+        
+        # Convert generator to list (like our create_js_iterable does)
+        items = list(gen)
+        log_result(f"  Generator converted to list: {items}")
+        return items
+    
+    proxied_consumption = create_proxy(wrapper_with_consumption)
+    
+    try:
+        result = proxied_consumption(mock_js_ctx.props, mock_js_ctx)
+        log_result(f"✅ Consumption call succeeded: {result}")
+    except Exception as e:
+        log_result(f"❌ Consumption call failed: {e}")
+        
+    # Test the issue might be in the Context.__iter__ itself
+    log_result("Step 5: Testing Context iteration in isolation...")
+    
+    try:
+        log_result("  Testing iter(context)...")
+        iterator = iter(simple_ctx)
+        log_result(f"  ✅ iter() succeeded: {type(iterator)}")
+        
+        log_result("  Testing next(iterator)...")
+        first_item = next(iterator)
+        log_result(f"  ✅ next() succeeded: {first_item}")
+        
+        log_result("  Testing for loop...")
+        count = 0
+        for item in simple_ctx:
+            log_result(f"  Loop item {count}: {item}")
+            count += 1
+            if count >= 2:
+                break
+        log_result("  ✅ for loop succeeded")
+        
+    except Exception as e:
+        log_result(f"❌ Context iteration failed: {e}")
+        
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+
+log_result("Isolated issue test completed")
+    </script>
+</body>
+</html>

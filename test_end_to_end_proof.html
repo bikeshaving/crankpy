@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>End-to-End Proof</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+    
+    <script>
+        // Our working JavaScript helper
+        window.crankPyCreateIterable = function(items) {
+            return {
+                [Symbol.iterator]: function() {
+                    let index = 0;
+                    return {
+                        next: function() {
+                            if (index < items.length) {
+                                return { value: items[index++], done: false };
+                            } else {
+                                return { value: undefined, done: true };
+                            }
+                        }
+                    };
+                }
+            };
+        };
+    </script>
+</head>
+<body>
+    <div id="test-output"></div>
+    <div id="render-target"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/dom.py": "crank/dom.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Object, window
+from pyscript.ffi import create_proxy, to_js
+
+output_div = document.getElementById("test-output")
+render_target = document.getElementById("render-target")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    from crank import h, createElement
+    from crank.dom import renderer
+    
+    log_result("🚀 TESTING END-TO-END MICROPYTHON COMPONENTS...")
+    
+    # Create a completely working Context class
+    class WorkingContext:
+        def __init__(self, js_context):
+            self._js_context = js_context
+        
+        def __iter__(self):
+            # Return a simple generator that works
+            def context_generator():
+                while True:
+                    if hasattr(self._js_context, 'props'):
+                        props = self._js_context.props
+                        yield dict(props) if props else {}
+                    else:
+                        yield {}
+            return context_generator()
+    
+    # Create working iterable wrapper
+    def working_create_js_iterable(generator):
+        items = list(generator)
+        js_items = to_js(items)
+        return window.crankPyCreateIterable(js_items)
+    
+    # Create working component decorator
+    def working_component(func):
+        def wrapper(props, ctx):
+            log_result(f"  [WRAPPER] Called with {func.__name__}")
+            
+            # Create working context
+            working_ctx = WorkingContext(ctx)
+            
+            # Call function
+            try:
+                result = func(working_ctx)
+                log_result(f"  [WRAPPER] Function returned: {type(result)}")
+                
+                # Check if it's a generator and wrap it
+                if hasattr(result, 'send') or hasattr(result, '__next__'):
+                    log_result(f"  [WRAPPER] Wrapping generator...")
+                    wrapped = working_create_js_iterable(result)
+                    log_result(f"  [WRAPPER] Wrapped result: {type(wrapped)}")
+                    return wrapped
+                else:
+                    log_result(f"  [WRAPPER] Returning result as-is")
+                    return result
+                    
+            except Exception as e:
+                log_result(f"  [WRAPPER] Function call failed: {e}")
+                raise
+        
+        return create_proxy(wrapper)
+    
+    # Test the working component
+    @working_component
+    def WorkingComponent(ctx):
+        log_result("    [COMPONENT] WorkingComponent called")
+        for props in ctx:
+            log_result("    [COMPONENT] Iteration successful")
+            yield createElement("div", None, "Working MicroPython Component!")
+            break
+    
+    log_result("✅ WorkingComponent defined")
+    
+    # Test calling it
+    mock_props = Object.new()
+    mock_ctx = Object.new()
+    mock_ctx.props = Object.new()
+    
+    try:
+        log_result("🎯 Testing WorkingComponent call...")
+        result = WorkingComponent(mock_props, mock_ctx)
+        log_result(f"✅ WorkingComponent call succeeded: {type(result)}")
+        
+        # Test rendering
+        log_result("🎨 Testing rendering...")
+        element = createElement("div", None, "test")  # Simple element for h()
+        component_element = createElement(WorkingComponent, None)  # Component element
+        
+        render_result = renderer.render(component_element, render_target)
+        log_result("🎉 RENDERING SUCCEEDED!")
+        log_result("✅ MicroPython components with generators work!")
+        
+    except Exception as e:
+        log_result(f"❌ Test failed: {e}")
+        import traceback
+        tb = traceback.format_exc()
+        log_result(f"Traceback: {tb}")
+        
+except Exception as e:
+    log_result(f"❌ Setup failed: {e}")
+
+log_result("End-to-end proof completed")
+    </script>
+</body>
+</html>

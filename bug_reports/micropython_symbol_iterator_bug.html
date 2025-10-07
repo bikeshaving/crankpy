@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>MicroPython Symbol.iterator Bug - Minimal Reproduction</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <h1>MicroPython Symbol.iterator Identity Bug</h1>
+    <div id="output"></div>
+    
+    <mpy-config>
+        {}
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Symbol, console
+
+output_div = document.getElementById("output")
+
+def log(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+    console.log(message)
+
+log(f"Python implementation: {sys.implementation.name}")
+
+try:
+    log("Testing Symbol.iterator identity...")
+    
+    # Test 1: Multiple accesses return different objects in MicroPython
+    sym1 = Symbol.iterator
+    sym2 = Symbol.iterator
+    log(f"First access: {sym1}")
+    log(f"Second access: {sym2}")
+    log(f"Are they the same object? {sym1 is sym2}")
+    log(f"Are they equal? {sym1 == sym2}")
+    
+    # Test 2: String representation comparison
+    log(f"String of first: {str(sym1)}")
+    log(f"String of second: {str(sym2)}")
+    log(f"String comparison: {str(sym1) == str(sym2)}")
+    
+    # Test 3: This inconsistency breaks Symbol.iterator implementations
+    class TestIterator:
+        def __getitem__(self, key):
+            if key == Symbol.iterator:  # This comparison fails due to identity issue
+                return lambda: iter([1, 2, 3])
+            raise KeyError(f"Unsupported key: {key}")
+    
+    test_obj = TestIterator()
+    
+    try:
+        iterator_func = test_obj[Symbol.iterator]
+        log("✅ Symbol.iterator lookup succeeded")
+    except KeyError as e:
+        log(f"❌ Symbol.iterator lookup failed: {e}")
+        log("BUG: Symbol.iterator identity changes between accesses in MicroPython")
+    
+except Exception as e:
+    log(f"❌ Test failed: {e}")
+
+log("Reproduction complete")
+    </script>
+</body>
+</html>

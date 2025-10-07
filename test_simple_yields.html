@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Yields Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/dom.py": "crank/dom.py", 
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Object
+from pyscript.ffi import create_proxy
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    from crank import h, component, createElement
+    
+    log_result("Testing components with different yield types...")
+    
+    # Test 1: Component that yields simple strings
+    log_result("Test 1: Component yielding strings...")
+    
+    @component
+    def StringComponent(ctx):
+        log_result("  StringComponent called")
+        for props in ctx:
+            log_result("  StringComponent: in context loop")
+            yield "Hello String!"
+            log_result("  StringComponent: after yield")
+            break
+    
+    mock_props = Object.new()
+    mock_ctx = Object.new()
+    mock_ctx.props = Object.new()
+    
+    try:
+        result1 = StringComponent(mock_props, mock_ctx)
+        log_result(f"✅ String component succeeded: {type(result1)}")
+    except Exception as e:
+        log_result(f"❌ String component failed: {e}")
+    
+    # Test 2: Component that yields createElement results
+    log_result("Test 2: Component yielding createElement...")
+    
+    @component
+    def CreateElementComponent(ctx):
+        log_result("  CreateElementComponent called")
+        for props in ctx:
+            log_result("  CreateElementComponent: in context loop")
+            yield createElement("div", None, "Hello createElement!")
+            log_result("  CreateElementComponent: after yield")
+            break
+    
+    try:
+        result2 = CreateElementComponent(mock_props, mock_ctx)
+        log_result(f"✅ createElement component succeeded: {type(result2)}")
+    except Exception as e:
+        log_result(f"❌ createElement component failed: {e}")
+    
+    # Test 3: Component that yields h.div elements (the problematic case)
+    log_result("Test 3: Component yielding h.div...")
+    
+    @component
+    def HDivComponent(ctx):
+        log_result("  HDivComponent called")
+        for props in ctx:
+            log_result("  HDivComponent: in context loop")
+            yield h.div["Hello h.div!"]
+            log_result("  HDivComponent: after yield")
+            break
+    
+    try:
+        result3 = HDivComponent(mock_props, mock_ctx)
+        log_result(f"✅ h.div component succeeded: {type(result3)}")
+    except Exception as e:
+        log_result(f"❌ h.div component failed: {e}")
+    
+    # Test 4: Let's inspect what h.div actually returns
+    log_result("Test 4: Inspecting h.div...")
+    
+    try:
+        div_element = h.div["Test"]
+        log_result(f"h.div type: {type(div_element)}")
+        log_result(f"h.div properties: {[attr for attr in dir(div_element) if not attr.startswith('_')][:10]}...")
+        
+        # Check if it has any iteration-related properties
+        has_iter = hasattr(div_element, '__iter__')
+        has_next = hasattr(div_element, '__next__')
+        log_result(f"h.div has __iter__: {has_iter}, has __next__: {has_next}")
+        
+    except Exception as e:
+        log_result(f"❌ h.div inspection failed: {e}")
+        
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+
+log_result("Simple yields test completed")
+    </script>
+</body>
+</html>

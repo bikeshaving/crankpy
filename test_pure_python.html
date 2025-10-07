@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Pure Python Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config></mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    log_result("Testing completely pure Python iteration...")
+    
+    # Test 1: Pure Python context with no JavaScript objects
+    class PurePythonContext:
+        def __init__(self, props_dict):
+            self.props_dict = props_dict
+        
+        def __iter__(self):
+            # Return a simple generator
+            def props_generator():
+                while True:
+                    yield self.props_dict
+            return props_generator()
+    
+    log_result("Pure Python context defined")
+    
+    pure_ctx = PurePythonContext({"name": "test", "value": 42})
+    
+    try:
+        count = 0
+        for props in pure_ctx:
+            log_result(f"  ✅ Pure iteration {count}: {props}")
+            count += 1
+            if count >= 2:
+                break
+        log_result("✅ Pure Python iteration works!")
+    except Exception as e:
+        log_result(f"❌ Pure Python iteration failed: {e}")
+    
+    # Test 2: Component with pure Python context
+    log_result("Testing component with pure Python context...")
+    
+    def pure_component(ctx):
+        log_result("  Pure component called")
+        for props in ctx:
+            log_result("  Pure component iteration")
+            yield f"Pure result: {props}"
+            break
+    
+    try:
+        gen = pure_component(pure_ctx)
+        result = next(gen)
+        log_result(f"✅ Pure component succeeded: {result}")
+    except Exception as e:
+        log_result(f"❌ Pure component failed: {e}")
+    
+    # Test 3: Now try with JavaScript object access
+    log_result("Testing with JavaScript object access...")
+    
+    from js import Object
+    js_obj = Object.new()
+    js_obj.name = "js_test"
+    
+    class JSAccessContext:
+        def __init__(self, js_object):
+            self.js_object = js_object
+        
+        def __iter__(self):
+            def js_props_generator():
+                # Access JavaScript object properties
+                props = {"name": self.js_object.name}
+                while True:
+                    yield props
+            return js_props_generator()
+    
+    js_ctx = JSAccessContext(js_obj)
+    
+    try:
+        count = 0
+        for props in js_ctx:
+            log_result(f"  ✅ JS access iteration {count}: {props}")
+            count += 1
+            if count >= 2:
+                break
+        log_result("✅ JS access iteration works!")
+    except Exception as e:
+        log_result(f"❌ JS access iteration failed: {e}")
+    
+    # Test 4: The problematic pattern - returning the JS object directly
+    log_result("Testing problematic pattern...")
+    
+    class ProblematicContext:
+        def __init__(self, js_object):
+            self.js_object = js_object
+        
+        def __iter__(self):
+            def problematic_generator():
+                while True:
+                    # Return the JS object directly (this might be the issue!)
+                    yield self.js_object
+            return problematic_generator()
+    
+    prob_ctx = ProblematicContext(js_obj)
+    
+    try:
+        count = 0
+        for props in prob_ctx:
+            log_result(f"  ✅ Problematic iteration {count}: {type(props)}")
+            count += 1
+            if count >= 2:
+                break
+        log_result("✅ Problematic pattern works!")
+    except Exception as e:
+        log_result(f"❌ Problematic pattern failed: {e}")
+        
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+
+log_result("Pure Python test completed")
+    </script>
+</body>
+</html>

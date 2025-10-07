@@ -5,13 +5,12 @@ These tests verify that the magic syntax works correctly on both runtimes
 with their respective implementation approaches.
 """
 
-import sys
 from unittest.mock import Mock, patch
 
 import pytest
 
 # Import mocks for PyScript/Pyodide modules
-from mock_setup import mock_crank_core, mock_create_proxy, mock_JsProxy, mock_to_js
+from mock_setup import mock_crank_core, mock_create_proxy, mock_to_js
 
 # Use the shared mock for createElement
 mock_createElement = mock_crank_core.createElement

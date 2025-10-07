@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Proxy Direction Debug</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/dom.py": "crank/dom.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Symbol, Object
+from pyscript.ffi import create_proxy
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    log_result("🔍 Testing proxy direction and iteration behavior...")
+    
+    # Test 1: What happens when we proxy a Python object to JavaScript?
+    log_result("=== Test 1: Proxy direction analysis ===")
+    
+    class PythonIterable:
+        def __iter__(self):
+            return iter([1, 2, 3])
+    
+    python_obj = PythonIterable()
+    
+    # Test direct Python iteration
+    log_result(f"Direct Python iteration: {list(python_obj)}")
+    
+    # Test proxy creation
+    proxied_obj = create_proxy(python_obj)
+    log_result(f"Proxied object type: {type(proxied_obj)}")
+    
+    # Test 2: Compare behavior with and without proxy
+    js_test_code = """
+    (function() {
+        const results = {};
+        
+        // Test 1: Raw JavaScript object with Symbol.iterator
+        const jsIterable = {
+            [Symbol.iterator]: function() {
+                let count = 0;
+                return {
+                    next: function() {
+                        if (count < 3) {
+                            return { value: count++, done: false };
+                        }
+                        return { value: undefined, done: true };
+                    }
+                };
+            }
+        };
+        
+        try {
+            const jsResults = [];
+            for (const value of jsIterable) {
+                jsResults.push(value);
+            }
+            results.jsIterable = { success: true, results: jsResults };
+        } catch (e) {
+            results.jsIterable = { success: false, error: e.message };
+        }
+        
+        return results;
+    })
+    """
+    
+    from js import eval as js_eval
+    test_func = js_eval(js_test_code)
+    results = test_func()
+    
+    log_result(f"JS native iteration: {results.jsIterable.success}, results: {list(results.jsIterable.results) if results.jsIterable.success else 'failed'}")
+    
+    # Test 3: Check what Symbol.iterator looks like on our objects
+    iterator_symbol = Symbol.iterator
+    log_result(f"Symbol.iterator: {iterator_symbol}")
+    
+    # Test what happens when we try to access Symbol.iterator on different objects
+    test_objects = [
+        ("Python object", python_obj),
+        ("Proxied Python object", proxied_obj),
+    ]
+    
+    for name, obj in test_objects:
+        try:
+            has_symbol = hasattr(obj, iterator_symbol)
+            log_result(f"{name} has Symbol.iterator: {has_symbol}")
+            
+            if has_symbol:
+                iterator_val = getattr(obj, iterator_symbol)
+                log_result(f"{name} Symbol.iterator value: {iterator_val}")
+        except Exception as e:
+            log_result(f"{name} Symbol.iterator access failed: {e}")
+    
+    # Test 4: Check if the issue is in the proxy wrapping
+    log_result("=== Test 4: Manual proxy protocol test ===")
+    
+    class ManualIterableProxy:
+        def __init__(self):
+            self.values = [10, 20, 30]
+        
+        def __getitem__(self, key):
+            log_result(f"ManualIterableProxy.__getitem__({key}, type: {type(key)})")
+            
+            if key == iterator_symbol:
+                def iterator_func():
+                    class Iterator:
+                        def __init__(self, values):
+                            self.values = values
+                            self.index = 0
+                        
+                        def next(self):
+                            if self.index < len(self.values):
+                                value = self.values[self.index]
+                                self.index += 1
+                                return {"value": value, "done": False}
+                            return {"value": None, "done": True}
+                    
+                    return Iterator(self.values)
+                
+                return create_proxy(iterator_func)
+            
+            # Handle integer access for debugging
+            if isinstance(key, int):
+                if 0 <= key < len(self.values):
+                    return self.values[key]
+                raise IndexError("Index out of range")
+            
+            raise KeyError(f"Key not supported: {key}")
+    
+    manual_proxy = ManualIterableProxy()
+    
+    # Test JavaScript iteration on manual proxy
+    manual_test_code = """
+    (function(obj) {
+        try {
+            console.log('=== Manual proxy test ===');
+            console.log('Object type:', typeof obj);
+            
+            // Check Symbol.iterator
+            const iter = obj[Symbol.iterator];
+            console.log('Iterator function:', typeof iter);
+            
+            if (iter) {
+                // Manual iteration test
+                const iterator = iter();
+                console.log('Created iterator:', typeof iterator);
+                
+                const result1 = iterator.next();
+                console.log('First next:', result1);
+                
+                // for...of test
+                console.log('Starting for...of...');
+                const results = [];
+                for (const value of obj) {
+                    results.push(value);
+                    if (results.length > 5) break;
+                }
+                
+                return { success: true, results: results };
+            }
+            
+            return { success: false, error: 'No iterator found' };
+            
+        } catch (e) {
+            console.log('Manual proxy error:', e.message);
+            return { success: false, error: e.message };
+        }
+    })
+    """
+    
+    manual_test = js_eval(manual_test_code)
+    manual_result = manual_test(manual_proxy)
+    
+    log_result(f"Manual proxy test: {manual_result.success}")
+    if manual_result.success:
+        log_result(f"Manual proxy results: {list(manual_result.results)}")
+    else:
+        log_result(f"Manual proxy error: {manual_result.error}")
+        
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+    import traceback
+    log_result(f"Traceback: {traceback.format_exc()}")
+
+log_result("Proxy direction debug completed")
+    </script>
+</body>
+</html>

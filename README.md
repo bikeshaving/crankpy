@@ -4,7 +4,7 @@ Modern components for Python frontend development.
 
 [![PyScript Compatible](https://img.shields.io/badge/PyScript-Compatible-blue)](https://pyscript.net)
 [![Pyodide Compatible](https://img.shields.io/badge/Pyodide-Compatible-green)](https://pyodide.org)
-[![MicroPython Compatible](https://img.shields.io/badge/MicroPython-Compatible-orange)](https://micropython.org)
+[![MicroPython Limited](https://img.shields.io/badge/MicroPython-Limited%20Support-yellow)](https://micropython.org)
 [![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Built on the [Crank.js](https://crank.js.org/) framework.
@@ -15,7 +15,7 @@ Built on the [Crank.js](https://crank.js.org/) framework.
 - **Generator Components** - Natural state management using Python generators
 - **Async Components** - Components can use `async def`/`await` and `await for`
 - **Lifecycle Decorators** - `@ctx.refresh`, `@ctx.after`, `@ctx.cleanup`
-- **Dual Runtime** - Full compatibility with both Pyodide and MicroPython runtimes
+- **Dual Runtime** - Works with both Pyodide (full support) and MicroPython (basic components)
 - **Browser Native** - No build step
 
 ## Installation
@@ -982,6 +982,54 @@ def SmartComponent(ctx, props):
             h.div(copy=not props.get("chartDataChanged", False))[
                 h(ChartComponent, data=props["chartData"])
             ]
+        ]
+```
+
+## Runtime Compatibility
+
+Crank.py works with both Pyodide and MicroPython runtimes, but with different levels of support:
+
+### Pyodide (Recommended)
+- ✅ **Full feature support** - All Crank.py features work perfectly
+- ✅ **Generator components** - `for _ in ctx:` and `yield` patterns
+- ✅ **Async components** - `async def` components with `async for`
+- ✅ **Complex applications** - TodoMVC, interactive demos, real apps
+- ✅ **Production ready** - Stable, well-tested Python implementation
+
+### MicroPython (Limited)
+- ✅ **Basic components** - Simple `return` style components work perfectly
+- ✅ **Props and state** - Component parameters and local state
+- ✅ **Event handlers** - Click handlers and DOM events  
+- ❌ **Generator components** - `for _ in ctx:` and `yield` patterns fail due to MicroPython's iterator/JavaScript interop limitations
+- ❌ **Complex iteration** - Generator-based patterns are not supported
+
+**Note**: MicroPython's generator implementation in PyScript environments has fundamental compatibility issues with JavaScript's iteration protocol (`Symbol.iterator`), preventing the use of Crank's core generator-based component pattern.
+
+**Recommendation**: Use **Pyodide for production applications**. MicroPython support is experimental and best suited for simple components or learning purposes.
+
+### Example: Cross-Runtime Component
+
+```python
+# ✅ Works in both Pyodide and MicroPython
+@component
+def SimpleGreeting(ctx, props):
+    name = props.get("name", "World")
+    return h.div[f"Hello, {name}!"]
+
+# ✅ Pyodide only - generator pattern
+@component  
+def InteractiveCounter(ctx):
+    count = 0
+    
+    @ctx.refresh
+    def increment():
+        nonlocal count
+        count += 1
+    
+    for _ in ctx:  # ❌ MicroPython limitation
+        yield h.div[
+            h.h1[f"Count: {count}"],
+            h.button(onClick=increment)["+"]
         ]
 ```
 

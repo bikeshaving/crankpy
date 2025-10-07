@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Symbol Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/dom.py": "crank/dom.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Symbol
+from pyscript.ffi import create_proxy
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    # Store Symbol.iterator in a variable for comparison
+    iterator_symbol = Symbol.iterator
+    log_result(f"Symbol.iterator: {iterator_symbol}")
+    
+    class SimpleSymbolIterable:
+        def __init__(self, values):
+            self.values = values
+        
+        def __getitem__(self, key):
+            log_result(f"__getitem__ called with key: {key}")
+            log_result(f"Key type: {type(key)}")
+            
+            # Debug: Check various equality conditions
+            try:
+                is_equal = key == iterator_symbol
+                log_result(f"key == iterator_symbol: {is_equal}")
+            except Exception as e:
+                log_result(f"Equality check failed: {e}")
+            
+            try:
+                is_same = key is iterator_symbol
+                log_result(f"key is iterator_symbol: {is_same}")
+            except Exception as e:
+                log_result(f"Identity check failed: {e}")
+            
+            # Try the comparison
+            if key == iterator_symbol:
+                log_result("🎯 Symbol.iterator detected!")
+                
+                def iterator_function():
+                    class Iterator:
+                        def __init__(self, vals):
+                            self.vals = vals
+                            self.index = 0
+                        
+                        def next(self):
+                            if self.index < len(self.vals):
+                                val = self.vals[self.index]
+                                self.index += 1
+                                return {"value": val, "done": False}
+                            return {"value": None, "done": True}
+                    
+                    return Iterator(self.values)
+                
+                return create_proxy(iterator_function)
+            
+            log_result(f"Key {key} not recognized")
+            raise KeyError(f"Unknown key: {key}")
+    
+    # Test it
+    simple_iterable = SimpleSymbolIterable(["a", "b", "c"])
+    
+    log_result("=== Testing Symbol access ===")
+    try:
+        result = simple_iterable[iterator_symbol]
+        log_result(f"SUCCESS: Got result {type(result)}")
+        
+        # Test the iterator
+        iterator = result()
+        log_result(f"Created iterator: {type(iterator)}")
+        
+        # Test next
+        next_result = iterator.next()
+        log_result(f"First next(): {next_result}")
+        
+    except Exception as e:
+        log_result(f"FAILED: {e}")
+    
+    # Test with different Symbol access patterns
+    log_result("=== Testing access patterns ===")
+    
+    # Pattern 1: Direct access
+    log_result("Pattern 1: Direct Symbol.iterator access")
+    try:
+        simple_iterable[Symbol.iterator]
+        log_result("✅ Direct access worked")
+    except Exception as e:
+        log_result(f"❌ Direct access failed: {e}")
+    
+    # Pattern 2: Variable access  
+    log_result("Pattern 2: Variable Symbol.iterator access")
+    try:
+        simple_iterable[iterator_symbol]
+        log_result("✅ Variable access worked")
+    except Exception as e:
+        log_result(f"❌ Variable access failed: {e}")
+        
+except Exception as e:
+    log_result(f"OVERALL FAILED: {e}")
+
+log_result("Simple symbol test completed")
+    </script>
+</body>
+</html>

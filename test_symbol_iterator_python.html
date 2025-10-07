@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Python-side Symbol.iterator Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/dom.py": "crank/dom.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Symbol
+from pyscript.ffi import create_proxy
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    log_result("🧪 Testing Python-side Symbol.iterator assignment...")
+    
+    # Test 1: Create a fibonacci generator
+    def fibonacci_generator():
+        a, b = 0, 1
+        for i in range(10):  # Limit to 10 numbers for testing
+            yield a
+            a, b = b, a + b
+    
+    fib_gen = fibonacci_generator()
+    log_result(f"Created fibonacci generator: {type(fib_gen)}")
+    
+    # Test 2: Try to assign Symbol.iterator directly to the generator
+    iterator_symbol = Symbol.iterator
+    log_result(f"Got Symbol.iterator: {iterator_symbol}")
+    
+    try:
+        # Attempt 1: Direct assignment
+        fib_gen[iterator_symbol] = create_proxy(lambda: fib_gen)
+        log_result("✅ Direct Symbol.iterator assignment succeeded")
+    except Exception as e:
+        log_result(f"❌ Direct assignment failed: {e}")
+        
+        # Attempt 2: Using setattr
+        try:
+            setattr(fib_gen, iterator_symbol, create_proxy(lambda: fib_gen))
+            log_result("✅ setattr Symbol.iterator assignment succeeded")
+        except Exception as e2:
+            log_result(f"❌ setattr assignment failed: {e2}")
+    
+    # Test 3: Check if the assignment worked
+    try:
+        iterator_method = fib_gen[iterator_symbol]
+        log_result(f"✅ Retrieved Symbol.iterator: {iterator_method}")
+        
+        # Test if JavaScript can iterate over it
+        js_test_code = """
+        (function(pythonGenerator) {
+            try {
+                console.log('Testing JS iteration over Python generator with Symbol.iterator');
+                const results = [];
+                for (const value of pythonGenerator) {
+                    results.push(value);
+                    if (results.length > 15) break; // Safety limit
+                }
+                return { success: true, results: results };
+            } catch (e) {
+                console.log('JS iteration error:', e.message);
+                return { success: false, error: e.message };
+            }
+        })
+        """
+        
+        from js import eval as js_eval
+        test_func = js_eval(js_test_code)
+        
+        result = test_func(fib_gen)
+        log_result(f"JS iteration success: {result.success}")
+        if result.success:
+            log_result(f"🎉 Fibonacci results: {list(result.results)}")
+        else:
+            log_result(f"❌ JS iteration error: {result.error}")
+            
+    except Exception as e:
+        log_result(f"❌ Symbol.iterator retrieval failed: {e}")
+    
+    # Test 4: Alternative approach - create a wrapper object
+    log_result("🔄 Testing wrapper object approach...")
+    
+    class IterableWrapper:
+        def __init__(self, generator):
+            self.generator = generator
+        
+        def __getitem__(self, key):
+            if key == iterator_symbol:
+                # Return a proper iterator function
+                def iterator_func():
+                    return self.generator
+                return create_proxy(iterator_func)
+            raise KeyError(key)
+    
+    try:
+        wrapper = IterableWrapper(fibonacci_generator())
+        iterator_method = wrapper[iterator_symbol]
+        log_result(f"✅ Wrapper approach - got iterator: {iterator_method}")
+        
+        # Create the test function for the wrapper
+        js_test_code = """
+        (function(pythonGenerator) {
+            try {
+                console.log('Testing JS iteration over Python generator with Symbol.iterator');
+                const results = [];
+                for (const value of pythonGenerator) {
+                    results.push(value);
+                    if (results.length > 15) break; // Safety limit
+                }
+                return { success: true, results: results };
+            } catch (e) {
+                console.log('JS iteration error:', e.message);
+                return { success: false, error: e.message };
+            }
+        })
+        """
+        
+        from js import eval as js_eval
+        wrapper_test_func = js_eval(js_test_code)
+        
+        # Test JavaScript iteration on wrapper
+        result = wrapper_test_func(wrapper)
+        log_result(f"Wrapper JS iteration success: {result.success}")
+        if result.success:
+            log_result(f"🎉 Wrapper Fibonacci results: {list(result.results)}")
+        else:
+            log_result(f"❌ Wrapper JS iteration error: {result.error}")
+            
+    except Exception as e:
+        log_result(f"❌ Wrapper approach failed: {e}")
+        import traceback
+        tb = traceback.format_exc()
+        log_result(f"Wrapper traceback: {tb}")
+        
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+    import traceback
+    tb = traceback.format_exc()
+    log_result(f"Traceback: {tb}")
+
+log_result("Symbol.iterator Python-side test completed")
+    </script>
+</body>
+</html>

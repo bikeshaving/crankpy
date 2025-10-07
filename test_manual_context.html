@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Manual Context Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config></mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Object
+from pyscript.ffi import create_proxy
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    log_result("Recreating our exact Context implementation...")
+    
+    # This is our exact Context implementation from crank/__init__.py
+    class OurActualContext:
+        def __init__(self, js_context):
+            self._js_context = js_context
+        
+        def __iter__(self):
+            """Custom iterator that avoids deprecated ctx.value access"""
+            # This is our exact ContextIterator implementation
+            class ContextIterator:
+                def __init__(self, js_context):
+                    self.js_context = js_context
+                    self.done = False
+
+                def __iter__(self):
+                    return self
+
+                def __next__(self):
+                    # Crank.js contexts yield props indefinitely in for-of loops
+                    if hasattr(self.js_context, 'props'):
+                        props = self.js_context.props
+                        # Convert JsProxy to Python dict for dual runtime compatibility
+                        if hasattr(props, 'to_py'):
+                            # Pyodide: Use to_py() method
+                            return props.to_py() if props else {}
+                        else:
+                            # MicroPython: Convert or use as-is if already dict
+                            return dict(props) if props else {}
+                    else:
+                        return {}
+
+            return ContextIterator(self._js_context)
+    
+    log_result("OurActualContext defined")
+    
+    # Test 1: Basic iteration
+    mock_js_ctx = Object.new()
+    mock_js_ctx.props = Object.new()
+    mock_js_ctx.props.name = "test"
+    
+    our_ctx = OurActualContext(mock_js_ctx)
+    log_result(f"Our Context created: {type(our_ctx)}")
+    
+    try:
+        log_result("Testing our actual Context iteration...")
+        count = 0
+        for props in our_ctx:
+            log_result(f"  ✅ Our iteration {count}: {props}")
+            count += 1
+            if count >= 2:
+                break
+        log_result("✅ Our actual Context iteration works!")
+    except Exception as e:
+        log_result(f"❌ Our actual Context iteration failed: {e}")
+    
+    # Test 2: Test iterator creation separately
+    log_result("Testing iterator creation...")
+    
+    try:
+        iterator = iter(our_ctx)
+        log_result(f"Iterator created: {type(iterator)}")
+        
+        first_result = next(iterator)
+        log_result(f"First result: {first_result}")
+        
+        second_result = next(iterator)
+        log_result(f"Second result: {second_result}")
+        
+    except Exception as e:
+        log_result(f"❌ Iterator test failed: {e}")
+    
+    # Test 3: Test with proxying (like in @component)
+    log_result("Testing with proxying...")
+    
+    def wrapper_function(props, ctx):
+        log_result("  Wrapper called")
+        wrapped_ctx = OurActualContext(ctx)
+        
+        def component_function(ctx):
+            log_result("    Component function called")
+            for props in ctx:
+                log_result("    Component iteration")
+                yield f"Component result: {props}"
+                break
+        
+        return component_function(wrapped_ctx)
+    
+    proxied_wrapper = create_proxy(wrapper_function)
+    
+    try:
+        result = proxied_wrapper(mock_js_ctx.props, mock_js_ctx)
+        log_result(f"✅ Proxied wrapper succeeded: {type(result)}")
+        
+        # Try to get first result
+        first = next(result)
+        log_result(f"✅ Proxied result: {first}")
+        
+    except Exception as e:
+        log_result(f"❌ Proxied wrapper failed: {e}")
+    
+    # Test 4: Minimal reproduction of the issue
+    log_result("Minimal reproduction attempt...")
+    
+    # Let's test if the issue is with our ContextIterator class specifically
+    try:
+        log_result("Testing ContextIterator class directly...")
+        
+        class ContextIterator:
+            def __init__(self, js_context):
+                self.js_context = js_context
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                if hasattr(self.js_context, 'props'):
+                    props = self.js_context.props
+                    return dict(props) if props else {}
+                else:
+                    return {}
+        
+        direct_iterator = ContextIterator(mock_js_ctx)
+        log_result(f"Direct ContextIterator created: {type(direct_iterator)}")
+        
+        # Test iteration over the iterator directly
+        count = 0
+        for props in direct_iterator:
+            log_result(f"  Direct iterator {count}: {props}")
+            count += 1
+            if count >= 2:
+                break
+        
+        log_result("✅ Direct ContextIterator works!")
+        
+    except Exception as e:
+        log_result(f"❌ Direct ContextIterator failed: {e}")
+        
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+
+log_result("Manual Context test completed")
+    </script>
+</body>
+</html>

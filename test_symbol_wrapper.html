@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Symbol Iterator Wrapper Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    <div id="render-target"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/dom.py": "crank/dom.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document
+
+output_div = document.getElementById("test-output")
+render_target = document.getElementById("render-target")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    from crank import h, component, createElement, SymbolIteratorWrapper
+    from crank.dom import renderer
+    
+    log_result("🎯 Testing new SymbolIteratorWrapper approach...")
+    
+    # Test 1: Test SymbolIteratorWrapper directly
+    log_result("=== Test 1: Direct SymbolIteratorWrapper test ===")
+    
+    def test_generator():
+        yield "item1"
+        yield "item2"  
+        yield "item3"
+    
+    gen = test_generator()
+    wrapper = SymbolIteratorWrapper(gen)
+    
+    log_result(f"Created wrapper: {wrapper}")
+    
+    # Test Symbol.iterator access
+    from js import Symbol
+    try:
+        iterator_func = wrapper[Symbol.iterator]
+        log_result(f"✅ Got iterator function: {type(iterator_func)}")
+        
+        js_iterator = iterator_func()
+        log_result(f"✅ Created JS iterator: {type(js_iterator)}")
+        
+        # Test iteration
+        result1 = js_iterator.next()
+        result2 = js_iterator.next()
+        result3 = js_iterator.next()
+        result4 = js_iterator.next()
+        
+        log_result(f"Results: {result1}, {result2}, {result3}, {result4}")
+        
+    except Exception as e:
+        log_result(f"❌ Direct wrapper test failed: {e}")
+    
+    # Test 2: Test with Crank component
+    log_result("=== Test 2: Crank component test ===")
+    
+    @component
+    def SymbolIteratorComponent(ctx):
+        log_result("SymbolIteratorComponent called")
+        
+        def fibonacci_generator():
+            a, b = 0, 1
+            for i in range(5):
+                yield createElement("div", None, f"Fibonacci: {a}")
+                a, b = b, a + b
+        
+        log_result("Returning generator from component")
+        return fibonacci_generator()
+    
+    try:
+        log_result("Creating component element...")
+        component_element = createElement(SymbolIteratorComponent, None)
+        
+        log_result("Rendering component...")
+        render_result = renderer.render(component_element, render_target)
+        
+        log_result("🎉 SUCCESS: SymbolIteratorWrapper works with Crank!")
+        
+    except Exception as e:
+        log_result(f"❌ Crank component test failed: {e}")
+    
+    # Test 3: Test with context iteration  
+    log_result("=== Test 3: Context iteration test ===")
+    
+    @component
+    def ContextIteratorComponent(ctx):
+        log_result("ContextIteratorComponent called")
+        
+        for props in ctx:
+            log_result("Context iteration successful")
+            
+            def content_generator():
+                yield createElement("h1", None, "Context Iterator Test")
+                yield createElement("p", None, "This uses our new Symbol.iterator mapping!")
+                yield createElement("div", None, "Generator-based components work!")
+            
+            yield from content_generator()
+            break  # Only do one iteration for test
+    
+    try:
+        log_result("Creating context component...")
+        ctx_element = createElement(ContextIteratorComponent, None)
+        
+        log_result("Rendering context component...")
+        ctx_result = renderer.render(ctx_element, render_target)
+        
+        log_result("🎉 SUCCESS: Context + SymbolIteratorWrapper works!")
+        
+    except Exception as e:
+        log_result(f"❌ Context component test failed: {e}")
+        
+except Exception as e:
+    log_result(f"❌ Test setup failed: {e}")
+
+log_result("SymbolIteratorWrapper test completed")
+    </script>
+</body>
+</html>

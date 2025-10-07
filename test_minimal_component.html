@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Minimal Component Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/dom.py": "crank/dom.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Object
+from pyscript.ffi import create_proxy
+
+output_div = document.getElementById("test-output")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    from crank import h, createElement
+    
+    log_result("Step 1: Testing raw function without @component decorator...")
+    
+    def raw_component(props, ctx):
+        log_result("  Raw component called")
+        # Return a simple element
+        return createElement("div", None, "Raw component")
+    
+    # Create proxy manually
+    proxied_raw = create_proxy(raw_component)
+    log_result(f"Raw component proxied: {type(proxied_raw)}")
+    
+    # Test calling it
+    mock_props = Object.new()
+    mock_ctx = Object.new()
+    
+    try:
+        raw_result = proxied_raw(mock_props, mock_ctx)
+        log_result(f"✅ Raw component succeeded: {type(raw_result)}")
+    except Exception as e:
+        log_result(f"❌ Raw component failed: {e}")
+    
+    log_result("Step 2: Testing our @component decorator...")
+    
+    from crank import component
+    
+    @component  
+    def decorated_component(ctx):
+        log_result("  Decorated component called")
+        return h.div["Decorated component"]
+    
+    log_result(f"Decorated component type: {type(decorated_component)}")
+    
+    try:
+        decorated_result = decorated_component(mock_props, mock_ctx)
+        log_result(f"✅ Decorated component succeeded: {type(decorated_result)}")
+    except Exception as e:
+        log_result(f"❌ Decorated component failed: {e}")
+    
+    log_result("Step 3: Testing manual wrapper logic...")
+    
+    def manual_wrapper(props, ctx):
+        log_result("  Manual wrapper called")
+        
+        # Simplified version of our wrapper logic
+        from crank import Context
+        wrapped_ctx = Context(ctx)
+        
+        # Convert props manually 
+        python_props = dict(props) if props else {}
+        
+        # Call function directly (no parameter detection)
+        log_result("  About to call function...")
+        
+        def test_function(ctx):
+            log_result("    Test function called")
+            return h.div["Manual test"]
+        
+        result = test_function(wrapped_ctx)
+        log_result(f"  Function returned: {type(result)}")
+        
+        # Skip wrapping for now
+        return result
+    
+    proxied_manual = create_proxy(manual_wrapper)
+    
+    try:
+        manual_result = proxied_manual(mock_props, mock_ctx)
+        log_result(f"✅ Manual wrapper succeeded: {type(manual_result)}")
+    except Exception as e:
+        log_result(f"❌ Manual wrapper failed: {e}")
+        
+except Exception as e:
+    log_result(f"❌ Test failed: {e}")
+
+log_result("Minimal component test completed")
+    </script>
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Direct Crank.js Test</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+</head>
+<body>
+    <div id="test-output"></div>
+    <div id="render-target"></div>
+    
+    <mpy-config>
+        {
+            "files": {
+                "./crank/__init__.py": "crank/__init__.py",
+                "./crank/dom.py": "crank/dom.py",
+                "./crank/typing_stub.py": "crank/typing_stub.py"
+            },
+            "js_modules": {
+                "main": {
+                    "https://esm.run/@b9g/crank@0.7.1/crank.js": "crank_core",
+                    "https://esm.run/@b9g/crank@0.7.1/dom.js": "crank_dom"
+                }
+            }
+        }
+    </mpy-config>
+    
+    <script type="mpy">
+import sys
+from js import document, Symbol
+from pyscript.ffi import create_proxy
+
+output_div = document.getElementById("test-output")
+render_target = document.getElementById("render-target")
+
+def log_result(message):
+    output_div.innerHTML += f"<div>{message}</div>"
+
+log_result(f"Python implementation: {sys.implementation.name}")
+
+try:
+    from crank import h, component, createElement
+    from crank.dom import renderer
+    
+    log_result("🚀 Testing DIRECT Crank.js calls (no js_eval)...")
+    
+    # Test 1: Create a component that uses our Symbol.iterator approach
+    class CrankIterable:
+        def __init__(self, values):
+            self.values = values
+        
+        def __getitem__(self, key):
+            log_result(f"CrankIterable.__getitem__({key}, type: {type(key)})")
+            
+            if key == Symbol.iterator:
+                def iterator_func():
+                    class Iterator:
+                        def __init__(self, values):
+                            self.values = values
+                            self.index = 0
+                        
+                        def next(self):
+                            if self.index < len(self.values):
+                                value = self.values[self.index]
+                                self.index += 1
+                                return {"value": value, "done": False}
+                            return {"value": None, "done": True}
+                    
+                    return Iterator(self.values)
+                
+                return create_proxy(iterator_func)
+            
+            # Handle any other access patterns
+            raise KeyError(f"Unexpected key: {key}")
+    
+    # Test 2: Create a component that returns our iterable
+    @component
+    def IterableComponent(ctx):
+        log_result("IterableComponent called")
+        
+        # Create our custom iterable that should work with Crank.js
+        iterable = CrankIterable([
+            createElement("div", None, "Item 1"),
+            createElement("div", None, "Item 2"), 
+            createElement("div", None, "Item 3")
+        ])
+        
+        log_result("Returning CrankIterable from component")
+        return iterable
+    
+    log_result("✅ IterableComponent defined")
+    
+    # Test 3: Try to render with Crank.js directly (no eval)
+    try:
+        log_result("🎯 Creating component element...")
+        component_element = createElement(IterableComponent, None)
+        log_result(f"✅ Component element created: {type(component_element)}")
+        
+        log_result("🎨 Calling renderer.render()...")
+        render_result = renderer.render(component_element, render_target)
+        log_result("🎉 SUCCESS: Direct Crank.js rendering worked!")
+        
+    except Exception as e:
+        log_result(f"❌ Direct Crank rendering failed: {e}")
+        import traceback
+        tb = traceback.format_exc()
+        log_result(f"Traceback: {tb}")
+    
+    # Test 4: Test if our existing component works now
+    log_result("=== Testing existing component approach ===")
+    
+    @component  
+    def FibonacciComponent(ctx):
+        log_result("FibonacciComponent called")
+        
+        def fibonacci_generator():
+            a, b = 0, 1
+            for i in range(5):
+                yield createElement("div", None, f"Fib: {a}")
+                a, b = b, a + b
+        
+        for _ in ctx:
+            log_result("FibonacciComponent: yielding from generator")
+            yield from fibonacci_generator()
+            break
+    
+    try:
+        log_result("🧮 Testing Fibonacci component...")
+        fib_element = createElement(FibonacciComponent, None)
+        fib_result = renderer.render(fib_element, render_target)
+        log_result("🎉 Fibonacci component rendered successfully!")
+        
+    except Exception as e:
+        log_result(f"❌ Fibonacci component failed: {e}")
+        import traceback
+        log_result(f"Fibonacci traceback: {traceback.format_exc()}")
+        
+except Exception as e:
+    log_result(f"❌ Test setup failed: {e}")
+    import traceback
+    log_result(f"Setup traceback: {traceback.format_exc()}")
+
+log_result("Direct Crank.js test completed")
+    </script>
+</body>
+</html>

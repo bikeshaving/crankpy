@@ -2,13 +2,10 @@
 Test async components and async for behavior matching Crank.js
 """
 
-import sys
 from unittest.mock import Mock
 
-import pytest
-
 # Import mocks for PyScript/Pyodide modules
-from mock_setup import mock_crank_core, mock_create_proxy, mock_JsProxy, mock_to_js
+from mock_setup import mock_crank_core, mock_create_proxy
 
 from crank import component, h
 
@@ -103,16 +100,16 @@ class TestAsyncIteratorBehavior:
     def test_context_has_async_iterator(self):
         """Test that Context implements __aiter__"""
         from crank import Context
-        
+
         # Mock JS context
         js_ctx = Mock()
         js_ctx.props = {"test": "value"}
-        
+
         ctx = Context(js_ctx)
-        
+
         # Should have async iterator method
         assert hasattr(ctx, '__aiter__')
-        
+
         # Get the async iterator and check it has __anext__
         async_iter = ctx.__aiter__()
         assert hasattr(async_iter, '__anext__')
@@ -120,28 +117,28 @@ class TestAsyncIteratorBehavior:
     def test_async_iterator_yields_props(self):
         """Test that async iterator yields props correctly"""
         from crank import Context
-        
+
         # Mock JS context with props
         js_ctx = Mock()
         js_ctx.props = {"test": "value"}
-        
+
         ctx = Context(js_ctx)
         async_iter = ctx.__aiter__()
-        
+
         # Should be an async iterator
         assert hasattr(async_iter, '__anext__')
 
     def test_async_iterator_continuous_mode(self):
         """Test that async iterator doesn't stop after first yield"""
         from crank import Context
-        
+
         # Mock JS context
         js_ctx = Mock()
         js_ctx.props = {"count": 1}
-        
+
         ctx = Context(js_ctx)
         async_iter = ctx.__aiter__()
-        
+
         # The iterator should not have a 'done' flag that stops iteration
         # (Unlike our previous broken implementation)
         assert not hasattr(async_iter, 'done') or not async_iter.done
