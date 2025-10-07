@@ -249,9 +249,11 @@ class Context(_ContextBase):
                 self._refresh()
             return result
 
-        # Preserve function metadata
-        wrapper.__name__ = func.__name__
-        wrapper.__doc__ = func.__doc__
+        # Preserve function metadata (safely for MicroPython compatibility)
+        if hasattr(func, '__name__'):
+            wrapper.__name__ = func.__name__
+        if hasattr(func, '__doc__'):
+            wrapper.__doc__ = func.__doc__
         return wrapper
 
     def schedule(self, func):
@@ -368,7 +370,13 @@ class Context(_ContextBase):
                 else:
                     yield {}  # type: ignore[misc]
 
-        return async_context_generator()
+        generator = async_context_generator()
+        
+        # Apply SymbolIteratorWrapper in MicroPython to fix async iteration bugs
+        if sys.implementation.name == 'micropython':
+            return SymbolIteratorWrapper(generator)
+        else:
+            return generator
 
     @property
     def props(self) -> T:
@@ -423,7 +431,7 @@ class Context(_ContextBase):
 
 # Symbol.iterator wrapper for MicroPython generators
 class SymbolIteratorWrapper:
-    """Wrapper that makes Python generators compatible with JavaScript Symbol.iterator protocol"""
+    """Wrapper that makes Python generators compatible with JavaScript Symbol.iterator and Symbol.asyncIterator protocols"""
     
     def __init__(self, python_generator):
         self.python_generator = python_generator
@@ -431,7 +439,7 @@ class SymbolIteratorWrapper:
         self._is_symbol_iterator_wrapped = True
     
     def __getitem__(self, key):
-        """Handle Symbol.iterator access using pure JavaScript approach"""
+        """Handle Symbol.iterator and Symbol.asyncIterator access using pure JavaScript approach"""
         # Use JavaScript eval to handle everything (workaround for MicroPython iteration bugs)
         from js import eval as js_eval
         
@@ -451,7 +459,27 @@ class SymbolIteratorWrapper:
                     };
                 };
             }
-            throw new Error('SymbolIteratorWrapper: Not Symbol.iterator');
+            if (pythonKey === Symbol.asyncIterator) {
+                return function() {
+                    return {
+                        next: function() {
+                            try {
+                                const value = pythonGen.__anext__();
+                                // Handle both sync and async values
+                                if (value && typeof value.then === 'function') {
+                                    return value.then(v => ({ value: v, done: false }))
+                                                .catch(() => ({ value: undefined, done: true }));
+                                } else {
+                                    return Promise.resolve({ value: value, done: false });
+                                }
+                            } catch (e) {
+                                return Promise.resolve({ value: undefined, done: true });
+                            }
+                        }
+                    };
+                };
+            }
+            throw new Error('SymbolIteratorWrapper: Not Symbol.iterator or Symbol.asyncIterator');
         })
         """
         
@@ -468,6 +496,29 @@ class SymbolIteratorWrapper:
     def __next__(self):
         """Make this a proper Python iterator"""
         return next(self.python_generator)
+    
+    def __aiter__(self):
+        """Return self for Python async iteration protocol"""
+        return self
+    
+    async def __anext__(self):
+        """Make this a proper Python async iterator"""
+        return await self.python_generator.__anext__()
+    
+    def next(self):
+        """JavaScript-style next method"""
+        try:
+            # Handle both sync and async generators
+            if hasattr(self.python_generator, '__anext__'):
+                # This is an async generator, we need to return a promise
+                # For now, this shouldn't be called for async generators
+                # as they should use Symbol.asyncIterator path
+                raise StopIteration("Sync next() called on async generator")
+            else:
+                value = next(self.python_generator)
+                return {"value": value, "done": False}
+        except StopIteration:
+            return {"value": None, "done": True}
     
     def __repr__(self):
         return f"SymbolIteratorWrapper({self.python_generator})"
