@@ -66,7 +66,9 @@ except ImportError:
     # Mock crank_core for testing
     class _MockCrank:
         class Element:
-            pass
+            def __getitem__(self, children):
+                """Support chainable syntax in mock environment"""
+                return _MockCrank.Element()
         
         @staticmethod
         def createElement(*args):

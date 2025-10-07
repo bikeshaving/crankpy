@@ -8,7 +8,7 @@ def test_micropython_inspect_capabilities(page: Page):
     """Test what inspect functionality is available in MicroPython"""
 
     # Navigate to our inspect test page
-    page.goto("http://localhost:3333/test_micropython_inspect.html")
+    page.goto("http://localhost:3333/tests/test_pages/test_micropython_inspect.html")
 
     # Wait for PyScript to load and execute
     page.wait_for_timeout(8000)

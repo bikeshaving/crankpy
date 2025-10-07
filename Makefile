@@ -1,49 +1,19 @@
-.PHONY: test test-unit test-integration test-main build serve clean help
+.PHONY: test build serve clean check help
 
 help:  ## Show this help message
 	@echo "Available commands:"
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
-test:  ## Run all tests (unit + integration)
+test:  ## Run all tests
 	uv run python -m pytest -v
 
-test-unit:  ## Run unit tests only  
-	uv run python -m pytest tests/test_crank.py tests/test_refs.py tests/test_types.py -v
-
-test-integration:  ## Run Playwright integration tests
-	uv run python -m pytest tests/test_integration.py -v
-
-test-micropython:  ## Run MicroPython compatibility tests
-	uv run python -m pytest tests/test_micropython_compatibility.py tests/test_error_handling.py -v
-
-test-package:  ## Run package-based integration tests  
-	uv build && uv run python -m pytest tests/test_package_integration.py -v
-
-test-dev-setup:  ## Install package in development mode for testing
-	uv pip install -e .
-
-test-main:  ## Run main test suite (alias for test-unit)
-	uv run python -m pytest tests/test_crank.py -v
-
-lint:  ## Run ruff linter
-	uv run ruff check .
-
-lint-fix:  ## Run ruff linter and fix issues
+lint:  ## Run ruff linter and formatter
 	uv run ruff check --fix .
-
-format:  ## Format code with ruff
 	uv run ruff format .
 
 typecheck:  ## Run pyright type checking
-	uv run pyright crank/
-
-typecheck-tests:  ## Run type checking on type-only tests
-	uv run pyright tests/test_types.py
-
-typecheck-all:  ## Run all type checking (core + tests)
-	$(MAKE) typecheck
-	$(MAKE) typecheck-tests
+	uv run pyright crank/ tests/test_types.py
 
 check:  ## Run all checks (lint + typecheck)
 	$(MAKE) lint
@@ -53,13 +23,12 @@ serve:  ## Start local server on port 3333
 	python3 -m http.server 3333
 
 build:  ## Build package for distribution
-	uv run python -m build
+	uv build
 
 clean:  ## Clean build artifacts
 	rm -rf dist/ build/ *.egg-info/ .pytest_cache/
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
-
 
 install:  ## Install in development mode with dev dependencies
 	uv sync --extra dev

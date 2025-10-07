@@ -29,7 +29,7 @@ def test_micropython_typing_imports(page: Page):
     <mpy-config>
         {
             "files": {
-                "./crank/typing_stub.py": "crank/typing_stub.py"
+                "../../crank/typing_stub.py": "crank/typing_stub.py"
             }
         }
     </mpy-config>
@@ -72,13 +72,13 @@ else:
 </html>
 """
 
-    # Write the test file  
-    test_file_path = os.path.join(os.path.dirname(__file__), "..", "test_typing_micropython.html")
+    # Write the test file to test_pages directory
+    test_file_path = os.path.join(os.path.dirname(__file__), "test_pages", "test_typing_micropython.html")
     with open(test_file_path, "w") as f:
         f.write(test_html)
 
-    # Navigate to the test page via HTTP server (like other tests)
-    page.goto("http://localhost:3333/test_typing_micropython.html")
+    # Navigate to the test page via HTTP server
+    page.goto("http://localhost:3333/tests/test_pages/test_typing_micropython.html")
 
     # Wait for PyScript to load and execute
     page.wait_for_timeout(8000)  # Increase timeout
@@ -121,9 +121,9 @@ def test_micropython_crank_imports(page: Page):
     <mpy-config>
         {
             "files": {
-                "./crank/__init__.py": "crank/__init__.py",
-                "./crank/dom.py": "crank/dom.py",
-                "./crank/typing_stub.py": "crank/typing_stub.py"
+                "../../crank/__init__.py": "crank/__init__.py",
+                "../../crank/dom.py": "crank/dom.py",
+                "../../crank/typing_stub.py": "crank/typing_stub.py"
             },
             "js_modules": {
                 "main": {
@@ -195,13 +195,13 @@ log_result(f"Python version: {sys.version}")
 </html>
 """
 
-    # Write the test file
-    test_file_path = os.path.join(os.path.dirname(__file__), "..", "test_crank_micropython.html")
+    # Write the test file to test_pages directory
+    test_file_path = os.path.join(os.path.dirname(__file__), "test_pages", "test_crank_micropython.html")
     with open(test_file_path, "w") as f:
         f.write(test_html)
 
     # Navigate to the test page via HTTP server
-    page.goto("http://localhost:3333/test_crank_micropython.html")
+    page.goto("http://localhost:3333/tests/test_pages/test_crank_micropython.html")
 
     # Wait for PyScript to load and execute
     page.wait_for_timeout(10000)  # Longer timeout for full Crank.py test
@@ -251,7 +251,7 @@ def test_micropython_vs_pyodide_behavior(page: Page):
     <mpy-config>
         {
             "files": {
-                "./crank/typing_stub.py": "crank/typing_stub.py"
+                "../../crank/typing_stub.py": "crank/typing_stub.py"
             }
         }
     </mpy-config>
@@ -259,7 +259,7 @@ def test_micropython_vs_pyodide_behavior(page: Page):
     <py-config>
         {
             "files": {
-                "./crank/typing_stub.py": "crank/typing_stub.py"
+                "../../crank/typing_stub.py": "crank/typing_stub.py"
             }
         }
     </py-config>
@@ -313,13 +313,13 @@ except Exception as e:
 </html>
 """
 
-    # Write the test file
-    test_file_path = os.path.join(os.path.dirname(__file__), "..", "test_comparison.html")
+    # Write the test file to test_pages directory
+    test_file_path = os.path.join(os.path.dirname(__file__), "test_pages", "test_comparison.html")
     with open(test_file_path, "w") as f:
         f.write(test_html)
 
-    # Navigate to the test page via HTTP server (like other tests)
-    page.goto("http://localhost:3333/test_comparison.html")
+    # Navigate to the test page via HTTP server
+    page.goto("http://localhost:3333/tests/test_pages/test_comparison.html")
 
     # Wait for both PyScript engines to load
     page.wait_for_timeout(15000)
