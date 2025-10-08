@@ -45,51 +45,9 @@ except ImportError:
     # MicroPython and regular Python don't have pyodide.ffi
     JsProxy = object  # Fallback type
 
-# Import PyScript modules only when available (browser environment)
-try:
-    from pyscript.ffi import create_proxy, to_js
-    from pyscript.js_modules import crank_core as crank
-    
-    _PYSCRIPT_AVAILABLE = True
-except ImportError:
-    # Regular Python environment - create mock functions for testing
-    _PYSCRIPT_AVAILABLE = False
-    
-    def create_proxy(func):
-        """Mock create_proxy for testing environments"""
-        return func
-    
-    def to_js(obj):
-        """Mock to_js for testing environments"""
-        return obj
-    
-    # Mock crank_core for testing
-    class _MockCrank:
-        class Element:
-            def __getitem__(self, children):
-                """Support chainable syntax in mock environment"""
-                return _MockCrank.Element()
-        
-        @staticmethod
-        def createElement(*args):
-            return _MockCrank.Element()
-        
-        class Fragment:
-            pass
-            
-        class Portal:
-            pass
-            
-        class Copy:
-            pass
-            
-        class Raw:
-            pass
-            
-        class Text:
-            pass
-    
-    crank = _MockCrank()
+# Import PyScript modules
+from pyscript.ffi import create_proxy, to_js
+from pyscript.js_modules import crank_core as crank
 
 # Global variable to track if we've patched the as_object_map type yet
 _as_object_map_type_patched = False
