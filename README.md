@@ -1002,7 +1002,11 @@ Crank.py works with both Pyodide and MicroPython runtimes, but with different le
 - **Event handlers** - Click handlers and DOM events
 - **Generator components** - `for _ in ctx:` and `yield` patterns work with JavaScript-based workarounds
 - **Context iteration** - Component lifecycle and props updates supported
+- **Sync generators** - Full support for `def` functions with `yield`
+- **❌ Async generators** - `async def` + `yield` not supported (MicroPython limitation)
 - **Performance overhead** - Uses JavaScript eval workarounds for Symbol.iterator compatibility
+
+**Async Generator Limitation**: MicroPython does not support async generators ([PEP 525](https://github.com/micropython/micropython/pull/6668)). Functions defined with `async def` that contain `yield` are converted to regular sync generators. Use regular `def` functions with `yield` for generator components in MicroPython.
 
 **Note**: MicroPython has fundamental Symbol.iterator compatibility issues that we work around using JavaScript-based implementations for `dir()`, `dict()`, and generator iteration. These workarounds are automatically applied when `sys.implementation.name == 'micropython'` without affecting Pyodide performance.
 
@@ -1011,13 +1015,13 @@ Crank.py works with both Pyodide and MicroPython runtimes, but with different le
 ### Example: Cross-Runtime Component
 
 ```python
-# Works in both Pyodide and MicroPython
+# ✅ Works in both Pyodide and MicroPython
 @component
 def SimpleGreeting(ctx, props):
     name = props.get("name", "World")
     return h.div[f"Hello, {name}!"]
 
-# Works in both Pyodide and MicroPython (with JS workarounds)
+# ✅ Works in both Pyodide and MicroPython (with JS workarounds)
 @component  
 def InteractiveCounter(ctx):
     count = 0
@@ -1032,6 +1036,33 @@ def InteractiveCounter(ctx):
             h.h1[f"Count: {count}"],
             h.button(onclick=increment)["+"]
         ]
+
+# ❌ Does NOT work in MicroPython (async generator limitation)
+@component
+async def AsyncCounter(ctx):
+    count = 0
+    
+    @ctx.refresh  
+    def increment():
+        nonlocal count
+        count += 1
+    
+    # This will be treated as sync generator in MicroPython
+    async for _ in ctx:  # Use regular 'for' instead
+        yield h.div[f"Async Count: {count}"]
+
+# ✅ MicroPython alternative - use regular generators
+@component  
+def WorkingCounter(ctx):
+    count = 0
+    
+    @ctx.refresh
+    def increment():
+        nonlocal count
+        count += 1
+    
+    for _ in ctx:  # Regular for loop works everywhere
+        yield h.div[f"Count: {count}"]
 
 # Advanced generator patterns work in both runtimes
 @component
