@@ -437,8 +437,11 @@ class Context(_ContextBase):
 class SymbolIteratorWrapper:
     """Wrapper that makes Python generators compatible with JavaScript Symbol.iterator and Symbol.asyncIterator protocols"""
     
-    def __init__(self, python_generator):
+    def __init__(self, python_generator, first_value=None):
         self.python_generator = python_generator
+        # Store first value if we consumed it during detection
+        self._first_value = first_value
+        self._first_value_consumed = False
         # Mark as wrapped to prevent double-wrapping
         self._is_symbol_iterator_wrapped = True
     
@@ -499,6 +502,10 @@ class SymbolIteratorWrapper:
     
     def __next__(self):
         """Make this a proper Python iterator"""
+        # Return preserved first value if we have it and haven't consumed it yet
+        if self._first_value is not None and not self._first_value_consumed:
+            self._first_value_consumed = True
+            return self._first_value
         return next(self.python_generator)
     
     def __aiter__(self):
@@ -507,39 +514,86 @@ class SymbolIteratorWrapper:
     
     async def __anext__(self):
         """Make this a proper Python async iterator"""
+        # Return preserved first value if we have it and haven't consumed it yet
+        if self._first_value is not None and not self._first_value_consumed:
+            self._first_value_consumed = True
+            return self._first_value
+            
         if hasattr(self.python_generator, '__anext__'):
             try:
-                from js import console
-                console.log(f"SymbolIteratorWrapper.__anext__: About to call __anext__ on {type(self.python_generator)}")
                 result = await self.python_generator.__anext__()
-                console.log(f"SymbolIteratorWrapper.__anext__: Got result: {result}")
                 return result
             except Exception as e:
-                from js import console
-                console.error(f"SymbolIteratorWrapper.__anext__: Error: {e}")
                 raise
         else:
-            # Sync generator wrapped as async - should not happen normally
-            raise StopAsyncIteration("Sync generator cannot be async iterated")
+            # Sync generator wrapped as async - convert sync next to async
+            try:
+                result = next(self.python_generator)
+                return result
+            except StopIteration as e:
+                raise StopAsyncIteration
     
     def next(self, value=None):
         """JavaScript-style next method"""
+        # Check if this is an async generator by looking at detection metadata
+        is_async_generator = self._is_async_generator()
+        
+        if is_async_generator:
+            # For async generators, return a Promise but handle ThenableEvent errors gracefully
+            try:
+                from js import Promise
+                
+                def promise_executor(resolve, reject):
+                    try:
+                        # Return preserved first value if we have it and haven't consumed it yet
+                        if self._first_value is not None and not self._first_value_consumed:
+                            self._first_value_consumed = True
+                            resolve({"value": self._first_value, "done": False})
+                            return
+                            
+                        # Use send() if we have a value, otherwise use next()
+                        if value is not None and hasattr(self.python_generator, 'send'):
+                            result = self.python_generator.send(value)
+                        else:
+                            result = next(self.python_generator)
+                        resolve({"value": result, "done": False})
+                    except StopIteration:
+                        resolve({"value": None, "done": True})
+                    except Exception as e:
+                        # Check if this is a ThenableEvent error
+                        error_str = str(e)
+                        if "ThenableEvent" in error_str and "no attribute" in error_str:
+                            # This is the PyScript Promise interop issue
+                            # Instead of rejecting, resolve with an error value that can be yielded
+                            resolve({"value": f"Error: JavaScript Promise await not supported in MicroPython generators. Use Python async operations instead.", "done": False})
+                        else:
+                            reject(str(e))
+                
+                return Promise.new(promise_executor)
+            except (ImportError, Exception):
+                # Fallback to sync behavior if Promise creation fails
+                pass
+        
+        # Sync generator or fallback behavior
         try:
-            # Handle both sync and async generators
-            if hasattr(self.python_generator, '__anext__'):
-                # This is an async generator, we need to return a promise
-                # For now, this shouldn't be called for async generators
-                # as they should use Symbol.asyncIterator path
-                raise StopIteration("Sync next() called on async generator")
+            # Return preserved first value if we have it and haven't consumed it yet
+            if self._first_value is not None and not self._first_value_consumed:
+                self._first_value_consumed = True
+                return {"value": self._first_value, "done": False}
+                
+            # Use send() if we have a value, otherwise use next()
+            if value is not None and hasattr(self.python_generator, 'send'):
+                result = self.python_generator.send(value)
             else:
-                # Use send() if we have a value, otherwise use next()
-                if value is not None and hasattr(self.python_generator, 'send'):
-                    result = self.python_generator.send(value)
-                else:
-                    result = next(self.python_generator)
-                return {"value": result, "done": False}
+                result = next(self.python_generator)
+            return {"value": result, "done": False}
         except StopIteration:
             return {"value": None, "done": True}
+    
+    def _is_async_generator(self):
+        """Detect if this is wrapping an async generator"""
+        # Use the metadata we stored during detection
+        return hasattr(self, '_detected_as_async_generator') and self._detected_as_async_generator
     
     def __repr__(self):
         return f"SymbolIteratorWrapper({self.python_generator})"
@@ -723,53 +777,70 @@ def component(func: Callable) -> Callable:
             
             # Check if we're in MicroPython and result needs wrapping
             if sys.implementation.name == 'micropython':
-                # CRITICAL FIX: Check for async function generators that need Promise conversion
-                # These are generators from async functions (not async generators)  
-                if (hasattr(result, '__next__') and hasattr(result, 'send') and 
-                    hasattr(result, 'throw') and not hasattr(result, '__anext__')):
-                    
-                    # MicroPython doesn't expose code object flags, so use runtime detection
-                    # Try to determine if this is an async function generator by testing if we can await it
-                    try:
-                        from js import Promise
-                        
-                        def promise_executor(resolve, reject):
-                            async def test_and_run():
-                                try:
-                                    # Try to await the generator - this will work for async functions
-                                    # but fail for sync generators  
-                                    final_result = await result
-                                    resolve(final_result)
-                                except Exception as e:
-                                    # If await fails, it might be a sync generator - let normal wrapping handle it
-                                    error_str = str(e).lower()
-                                    if 'coroutine' in error_str or 'await' in error_str:
-                                        # This suggests it's actually async-related
-                                        reject(str(e))
-                                    else:
-                                        # Probably a sync generator - reject so we fall back to normal handling
-                                        reject("Not async generator")
-                            
-                            # Start the async test
-                            import asyncio
-                            asyncio.create_task(test_and_run())
-                        
-                        # Always try Promise conversion for generators that might be async
-                        # If it fails, Crank.js will handle the rejection gracefully
-                        return Promise.new(promise_executor)
-                    except (ImportError, Exception):
-                        # Fallback if Promise creation fails - treat as regular generator
-                        pass
+                # MicroPython async generator strategy:
+                # Treat ALL generators as sync generators to avoid ThenableEvent issues
                 
-                # Check for async generators (have __anext__)
-                if hasattr(result, '__anext__'):
-                    return SymbolIteratorWrapper(result)
-                # Check for sync generators (have __next__ but not __anext__)
-                elif hasattr(result, '__next__') and not hasattr(result, '__anext__'):
-                    return SymbolIteratorWrapper(result)
-                # Check for generator-like objects (have send method)
-                elif hasattr(result, 'send') and not hasattr(result, '__anext__'):
-                    return SymbolIteratorWrapper(result)
+                is_generator_func = inspect.isgeneratorfunction(func) if hasattr(inspect, 'isgeneratorfunction') else False
+                
+                # If inspect says it's not a generator function, trust that
+                if not is_generator_func:
+                    # sync_function - return as-is
+                    return result
+                
+                # If inspect says it's a generator function, we need runtime test
+                if hasattr(result, '__next__'):
+                    try:
+                        # Try to get first value - this is the key test
+                        first_value = next(result)
+                        # If we get here, it yielded a value -> it's a generator
+                        
+                        # Determine if this is an async generator
+                        # MicroPython limitation: async generators are converted to regular generators
+                        # See: https://github.com/micropython/micropython/pull/6668
+                        # See: https://github.com/micropython/micropython/issues/14331
+                        is_async_generator = False
+                        
+                        if sys.implementation.name == 'micropython':
+                            # MicroPython does not support async generators (PEP 525)
+                            # All generators are treated as sync regardless of async def syntax
+                            is_async_generator = False
+                        else:
+                            # In full Python environments, check for async generator characteristics
+                            try:
+                                # Check if the generator has async iterator methods
+                                has_anext = hasattr(result, '__anext__')
+                                has_aiter = hasattr(result, '__aiter__')
+                                
+                                # Check generator type for async characteristics
+                                generator_type_name = str(type(result))
+                                is_async_gen_type = 'async_generator' in generator_type_name.lower()
+                                
+                                # If generator has clear async characteristics, it's async
+                                if is_async_gen_type or has_anext or has_aiter:
+                                    is_async_generator = True
+                                    
+                            except Exception:
+                                # If detection fails, fall back to safe default
+                                is_async_generator = False
+                        
+                        wrapper = SymbolIteratorWrapper(result, first_value=first_value)
+                        wrapper._detected_as_async_generator = is_async_generator
+                        return wrapper
+                        
+                    except StopIteration as e:
+                        # Immediate StopIteration -> async_function
+                        # Return the function's return value directly
+                        return e.value if hasattr(e, 'value') else None
+                    except Exception:
+                        # Some other error - treat as sync generator to be safe
+                        wrapper = SymbolIteratorWrapper(result)
+                        wrapper._detected_as_async_generator = False
+                        return wrapper
+                else:
+                    # No __next__ method - not a generator result
+                    return result
+                
+                # Non-generator results pass through unchanged
             return result
 
         # Check if we have cached parameter count

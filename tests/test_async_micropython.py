@@ -79,6 +79,47 @@ async def main():
         
         log_result("✅ Async component creation successful")
         
+        # Test MicroPython async generator behavior
+        log_result("\\n--- Testing MicroPython Async Generators ---")
+        
+        @component
+        def sync_comp(ctx):
+            yield "sync"
+        
+        @component  
+        async def async_comp(ctx):
+            # Note: In MicroPython, this behaves like a sync generator
+            # due to lack of async generator support (PEP 525)
+            yield "async"
+        
+        class MockContext:
+            pass
+        
+        mock_ctx = MockContext()
+        mock_props = {}
+        
+        for name, comp in [("sync_comp", sync_comp), ("async_comp", async_comp)]:
+            log_result(f"{name}:")
+            try:
+                result = comp(mock_props, mock_ctx)
+                
+                if hasattr(result, '_detected_as_async_generator'):
+                    detected = result._detected_as_async_generator
+                    log_result(f"  Detected as async: {detected}")
+                    
+                    # In MicroPython, both should be False due to async generator limitation
+                    if detected == False:
+                        log_result(f"  ✅ Correctly detected as sync (MicroPython limitation)")
+                    else:
+                        log_result(f"  ⚠️  Unexpected async detection")
+                else:
+                    log_result(f"  No detection attribute")
+                    
+            except Exception as e:
+                log_result(f"  ❌ Error: {e}")
+        
+        log_result("--- Async Generator Test Complete ---\\n")
+        
         # Test rendering
         try:
             log_result("Starting async rendering...")
@@ -119,6 +160,10 @@ asyncio.create_task(main())
     # Get all output for debugging
     all_output = page.locator("#test-output").inner_text()
     print(f"MicroPython async test output:\n{all_output}")
+    
+    # Check if MicroPython implementation is working correctly
+    if "MicroPython limitation" in all_output:
+        print("✅ MicroPython async generator limitation properly handled")
     
     # Check for success indicators
     if "✅ Async component creation successful" not in all_output:
