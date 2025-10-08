@@ -5,15 +5,38 @@ help:  ## Show this help message
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
-test:  ## Run all tests
-	uv run python -m pytest -v
+test:  ## Run automated upytest with pass/fail results (verbose)
+	@echo "🧪 Running automated upytest in both Pyodide and MicroPython"
+	@if ! curl -s http://localhost:3333/ > /dev/null 2>&1; then \
+		echo "❌ Server not running. Starting server..."; \
+		echo "Please run 'make serve' in another terminal, then run 'make test' again."; \
+		exit 1; \
+	fi
+	uv run --group test python test_runner.py --verbose
+
+test-manual:  ## Run upytest manually in browser (interactive)
+	@echo "🧪 Running upytest-based tests in browser environments"
+	@echo ""
+	@echo "📋 To run tests manually:"
+	@echo "   1. Start server: make serve"
+	@echo "   2. Open Pyodide tests: http://localhost:3333/test_upytest_runner.html"
+	@echo "   3. Open MicroPython tests: http://localhost:3333/test_upytest_runner_micropython.html"
+	@echo ""
+	@echo "✅ Tests run directly in browser - no automation needed!"
+
+test-pyodide:  ## Run automated upytest for Pyodide only
+	uv run --group test python test_runner.py --runtime pyodide --verbose
+
+test-micropython:  ## Run automated upytest for MicroPython only
+	uv run --group test python test_runner.py --runtime micropython --verbose
+
 
 lint:  ## Run ruff linter and formatter
 	uv run ruff check --fix .
 	uv run ruff format .
 
 typecheck:  ## Run pyright type checking
-	uv run pyright crank/ tests/test_types.py
+	uv run pyright crank/
 
 check:  ## Run all checks (lint + typecheck)
 	$(MAKE) lint

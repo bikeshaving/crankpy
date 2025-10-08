@@ -37,12 +37,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0",
-    "pytest-asyncio>=0.21.0",
-    "playwright>=1.40.0",
     "build>=0.10.0",
     "twine>=4.0.0",
-    "pytest-playwright>=0.5.2",
 ]
 
 [project.urls]
@@ -63,6 +59,9 @@ crank = ["py.typed"]
 dev = [
     "pyright>=1.1.406",
     "ruff>=0.13.3",
+]
+test = [
+    "playwright>=1.40.0",
 ]
 
 [tool.ruff]
@@ -87,7 +86,6 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
-"tests/*.py" = ["E402"]  # Allow imports after mocking setup
 "examples/*.py" = ["E402", "B023"]  # Allow imports after setup and loop var binding issues
 
 [tool.pyright]
@@ -96,6 +94,6 @@ typeCheckingMode = "basic"  # Start with basic, not strict
 reportUnknownMemberType = false  # For JS interop
 reportUnknownVariableType = false  # For PyScript/Pyodide  
 reportMissingImports = false  # Ignore JS module imports
-include = ["crank", "tests/test_types.py"]  # Include type-only tests
-exclude = ["tests/test_*.py", "examples"]  # Exclude runtime tests, include type tests
+include = ["crank"]  # Only include the main package
+exclude = ["tests", "examples"]  # Exclude all tests and examples
 extraPaths = ["."]
