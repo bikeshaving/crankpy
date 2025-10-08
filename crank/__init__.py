@@ -590,6 +590,30 @@ class SymbolIteratorWrapper:
         except StopIteration:
             return {"value": None, "done": True}
     
+    def throw(self, exception_type, exception_value=None, traceback=None):
+        """JavaScript iterator protocol: throw() method for error injection"""
+        # Handle throwing errors into generators (like Crank.js)
+        try:
+            if hasattr(self.python_generator, 'throw'):
+                # Python generator supports throw()
+                if exception_value is not None:
+                    result = self.python_generator.throw(exception_type, exception_value, traceback)
+                else:
+                    # If only one argument, it could be an exception instance
+                    result = self.python_generator.throw(exception_type)
+                return {"value": result, "done": False}
+            else:
+                # Fallback: raise the exception normally
+                if exception_value is not None:
+                    raise exception_type(exception_value)
+                else:
+                    raise exception_type
+        except StopIteration:
+            return {"value": None, "done": True}
+        except Exception as e:
+            # Re-raise the exception if it wasn't caught by the generator
+            raise e
+    
     def _is_async_generator(self):
         """Detect if this is wrapping an async generator"""
         # Use the metadata we stored during detection

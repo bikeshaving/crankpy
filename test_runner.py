@@ -23,13 +23,16 @@ async def create_upytest_runner_page(page, runtime: str = "pyodide"):
                 "files": {
                     "./tests/upytest.py": "upytest.py",
                     "./crank/__init__.py": "crank/__init__.py",
-                    "./crank/async.py": "crank/async.py", 
+                    "./crank/async_.py": "crank/async_.py", 
                     "./crank/dom.py": "crank/dom.py",
                     "./crank/html.py": "crank/html.py",
                     "./crank/typing_stub.py": "crank/typing_stub.py",
                     "./tests/test_components.py": "test_components.py",
                     "./tests/test_hyperscript.py": "test_hyperscript.py",
                     "./tests/test_cross_runtime.py": "test_cross_runtime.py",
+                    "./tests/test_generator_advanced.py": "test_generator_advanced.py",
+                    "./tests/test_special_elements.py": "test_special_elements.py",
+                    "./tests/test_suspense_async.py": "test_suspense_async.py",
                     "./tests/conftest.py": "conftest.py"
                 }
             }
@@ -43,13 +46,16 @@ async def create_upytest_runner_page(page, runtime: str = "pyodide"):
                 "files": {
                     "./tests/upytest.py": "upytest.py",
                     "./crank/__init__.py": "crank/__init__.py",
-                    "./crank/async.py": "crank/async.py",
+                    "./crank/async_.py": "crank/async_.py",
                     "./crank/dom.py": "crank/dom.py", 
                     "./crank/html.py": "crank/html.py",
                     "./crank/typing_stub.py": "crank/typing_stub.py",
                     "./tests/test_components.py": "test_components.py",
                     "./tests/test_hyperscript.py": "test_hyperscript.py",
                     "./tests/test_cross_runtime.py": "test_cross_runtime.py",
+                    "./tests/test_generator_advanced.py": "test_generator_advanced.py",
+                    "./tests/test_special_elements.py": "test_special_elements.py",
+                    "./tests/test_suspense_async.py": "test_suspense_async.py",
                     "./tests/conftest.py": "conftest.py"
                 }
             }
@@ -69,7 +75,10 @@ async def main():
     test_files = [
         "test_components.py",
         "test_hyperscript.py", 
-        "test_cross_runtime.py"
+        "test_cross_runtime.py",
+        "test_generator_advanced.py",
+        "test_special_elements.py",
+        "test_suspense_async.py"
     ]
     
     total_passed = 0

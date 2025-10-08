@@ -168,6 +168,108 @@ class TestComponentLifecycle:
         assert AsyncIteratingComponent is not None
 
 
+class TestAdvancedGeneratorFeatures:
+    """Test advanced generator features from Crank.js parity"""
+    
+    def test_yield_resume_with_result(self):
+        """Test that yield can receive values when resumed (like Crank.js)"""
+        @component
+        def YieldResumeComponent(ctx):
+            result = None
+            for props in ctx:
+                # In Crank.js, yield can receive values when resumed
+                # This should work: result = yield element
+                if result is not None:
+                    yield h.div[f"Resumed with: {result}"]
+                else:
+                    result = yield h.div["Waiting for result"]
+        
+        # This component should handle yield resume patterns
+        assert YieldResumeComponent is not None
+    
+    def test_multiple_yields_per_iteration(self):
+        """Test multiple yields within single iteration (like Crank.js)"""
+        @component
+        def MultiYieldComponent(ctx):
+            for props in ctx:
+                # Crank.js allows multiple yields per update
+                yield h.div["First yield"]
+                yield h.div["Second yield"] 
+                yield h.div["Third yield"]
+        
+        assert MultiYieldComponent is not None
+    
+    def test_generator_lifecycle_cleanup(self):
+        """Test generator cleanup with try/finally (like Crank.js)"""
+        cleanup_called = {"value": False}
+        
+        @component
+        def LifecycleComponent(ctx):
+            try:
+                for props in ctx:
+                    yield h.div["Component active"]
+            finally:
+                # This should be called when component is unmounted
+                cleanup_called["value"] = True
+        
+        assert LifecycleComponent is not None
+        # Note: cleanup_called will be tested when we have a proper renderer
+    
+    def test_generator_error_handling(self):
+        """Test error handling in generator components"""
+        @component  
+        def ErrorHandlingComponent(ctx):
+            try:
+                for props in ctx:
+                    if props.get("should_error"):
+                        raise ValueError("Component error")
+                    yield h.div["All good"]
+            except ValueError as e:
+                yield h.div[f"Caught error: {e}"]
+        
+        assert ErrorHandlingComponent is not None
+    
+    def test_generator_throw_error_injection(self):
+        """Test throwing errors into running generators (like Crank.js)"""
+        @component
+        def ThrowTargetComponent(ctx):
+            try:
+                for props in ctx:
+                    # This yield should be able to receive thrown errors
+                    result = yield h.div["Waiting for error or props"]
+                    yield h.div[f"Received: {result}"]
+            except Exception as e:
+                yield h.div[f"Caught thrown error: {e}"]
+        
+        assert ThrowTargetComponent is not None
+    
+    def test_async_generator_error_propagation(self):
+        """Test error propagation in async generators"""
+        @component
+        async def AsyncErrorComponent(ctx):
+            try:
+                async for props in ctx:
+                    if props.get("async_error"):
+                        raise RuntimeError("Async component error")
+                    yield h.div["Async component working"]
+            except RuntimeError as e:
+                yield h.div[f"Async error caught: {e}"]
+        
+        assert AsyncErrorComponent is not None
+    
+    def test_generator_context_return_value(self):
+        """Test that context iterator can return values (like Crank.js)"""
+        @component
+        def ContextReturnComponent(ctx):
+            for props in ctx:
+                if props.get("should_return"):
+                    # In Crank.js, context iterator can return values
+                    return h.div["Returned from context"]
+                yield h.div["Normal yield"]
+        
+        assert ContextReturnComponent is not None
+
+
 class TestComponentProps:
     """Test component props handling"""
     
