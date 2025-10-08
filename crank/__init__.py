@@ -176,9 +176,8 @@ class Context(_ContextBase):
                 else:
                     attrs = []
 
-            # TODO: Bad Claude
-            except Exception:
-                # Fallback to empty list if JavaScript enumeration fails
+            except (AttributeError, TypeError):
+                # Only catch specific JS evaluation errors
                 attrs = []
         else:
             # Pyodide: Use normal dir() which works fine
@@ -187,12 +186,8 @@ class Context(_ContextBase):
 
         # Copy the enumerated attributes
         for attr in attrs:
-            try:
-                value = getattr(js_context, attr)
-                setattr(self, attr, value)
-            # TODO: Bad Claude
-            except Exception:
-                pass
+            value = getattr(js_context, attr)
+            setattr(self, attr, value)
 
     def refresh(self, func=None):
         """Can be used as a method call or decorator"""
@@ -209,16 +204,9 @@ class Context(_ContextBase):
                 self._refresh()
             return result
 
-        # Preserve function metadata (safely for MicroPython compatibility)
-        # TODO: only swallow in MicroPython and confirm this is throwing in MicroPython
-        try:
-            wrapper.__name__ = func.__name__
-        except AttributeError:
-            pass  # MicroPython closures may not have __name__
-        try:
-            wrapper.__doc__ = func.__doc__
-        except AttributeError:
-            pass  # MicroPython closures may not have __doc__
+        # Preserve function metadata
+        wrapper.__name__ = func.__name__
+        wrapper.__doc__ = func.__doc__
         return wrapper
 
     def schedule(self, func):
@@ -1159,25 +1147,20 @@ class ElementBuilder:
 
     def _make_pyodide_chainable_element(self, element, props):
         """Create Pyodide chainable element using as_object_map approach"""
-        try:
-            # Ensure the as_object_map type is patched
-            _patch_as_object_map_type()
+        # Ensure the as_object_map type is patched
+        _patch_as_object_map_type()
 
-            # Use as_object_map to make the element subscriptable
-            if hasattr(element, 'as_object_map'):
-                chainable = element.as_object_map()
+        # Use as_object_map to make the element subscriptable
+        if hasattr(element, 'as_object_map'):
+            chainable = element.as_object_map()
 
-                # Mark this as a chainable element for our patched __getitem__
-                chainable._crank_tag = self.tag_or_component
-                chainable._crank_props = props
+            # Mark this as a chainable element for our patched __getitem__
+            chainable._crank_tag = self.tag_or_component
+            chainable._crank_props = props
 
-                return chainable
-            else:
-                # Fallback to original element if as_object_map not available
-                return element
-        except Exception:
-            # TODO: Bad CLAUDE
-            # Fallback to original element if anything goes wrong
+            return chainable
+        else:
+            # Fallback to original element if as_object_map not available
             return element
 
     def _process_props_for_proxies(self, props):
