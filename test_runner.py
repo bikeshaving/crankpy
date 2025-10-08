@@ -24,7 +24,8 @@ async def run_tests(runtime: str = "pyodide"):
                     "./tests/test_lifecycle.py": "test_lifecycle.py",
                     "./tests/test_hyperscript.py": "test_hyperscript.py",
                     "./tests/test_generators.py": "test_generators.py",
-                    "./tests/test_dynamic_tags.py": "test_dynamic_tags.py"
+                    "./tests/test_dynamic_tags.py": "test_dynamic_tags.py",
+                    "./tests/test_refs_keys_copy.py": "test_refs_keys_copy.py"
                 },
                 "js_modules": {
                     "main": {
@@ -54,7 +55,8 @@ async def run_tests(runtime: str = "pyodide"):
                     "./tests/test_lifecycle.py": "test_lifecycle.py",
                     "./tests/test_hyperscript.py": "test_hyperscript.py",
                     "./tests/test_generators.py": "test_generators.py",
-                    "./tests/test_dynamic_tags.py": "test_dynamic_tags.py"
+                    "./tests/test_dynamic_tags.py": "test_dynamic_tags.py",
+                    "./tests/test_refs_keys_copy.py": "test_refs_keys_copy.py"
                 },
                 "js_modules": {
                     "main": {
