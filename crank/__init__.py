@@ -147,47 +147,7 @@ class Context(_ContextBase):
         if self._cleanup and hasattr(self._cleanup, 'bind'):
             self._cleanup = self._cleanup.bind(js_context)
 
-        # Copy over all properties from JS context (except deprecated ones)
-        # In MicroPython, dir() on JsProxy triggers js_get_iter bug, so use JavaScript approach
-        if sys.implementation.name == 'micropython':
-            try:
-                # Use JavaScript to safely enumerate properties
-                from js import eval as js_eval
-                js_code = """
-                (function(jsObj) {
-                    const props = [];
-                    for (const key in jsObj) {
-                        if (typeof key === 'string' && !key.startsWith('_') &&
-                            !['refresh', 'schedule', 'after', 'cleanup', 'value'].includes(key)) {
-                            props.push(key);
-                        }
-                    }
-                    return props;
-                })
-                """
-                get_props = js_eval(js_code)
-                attrs = get_props(js_context)
-
-                # Convert to Python list if needed
-                if hasattr(attrs, 'to_py'):
-                    attrs = attrs.to_py()
-                elif hasattr(attrs, '__iter__'):
-                    attrs = list(attrs)
-                else:
-                    attrs = []
-
-            except (AttributeError, TypeError):
-                # Only catch specific JS evaluation errors
-                attrs = []
-        else:
-            # Pyodide: Use normal dir() which works fine
-            attrs = [attr for attr in dir(js_context)
-                    if not attr.startswith('_') and attr not in ['refresh', 'schedule', 'after', 'cleanup', 'value']]
-
-        # Copy the enumerated attributes
-        for attr in attrs:
-            value = getattr(js_context, attr)
-            setattr(self, attr, value)
+        # No need to copy attributes - __getattr__ fallback handles JS context access
 
     def refresh(self, func=None):
         """Can be used as a method call or decorator"""
