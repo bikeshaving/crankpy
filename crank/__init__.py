@@ -634,29 +634,83 @@ def component(func: Callable) -> Callable:
             # Pyodide: Use to_py() method
             python_props = props.to_py() if props else {}
         else:
-            # MicroPython: Use safe conversion to avoid dict() iteration bug
+            # MicroPython: Handle JsProxy objects directly
             if props and sys.implementation.name == 'micropython':
                 try:
-                    from js import eval as js_eval
-                    js_code = """
-                    (function(jsObj) {
-                        if (!jsObj) return {};
-                        const result = {};
-                        for (const key in jsObj) {
-                            if (jsObj.hasOwnProperty(key)) {
-                                result[key] = jsObj[key];
-                            }
-                        }
-                        return result;
-                    })
-                    """
-                    convert_obj = js_eval(js_code)
-                    js_dict = convert_obj(props)
-                    if hasattr(js_dict, 'to_py'):
-                        python_props = js_dict.to_py()
-                    else:
+                    # Check if props is a JsProxy (common in MicroPython)
+                    if type(props).__name__ == 'JsProxy':
+                        # Use safer property enumeration for JsProxy
                         python_props = {}
-                except Exception:
+                        
+                        # Method 1: Try direct property access for known common props
+                        common_props = ['name', 'value', 'id', 'className', 'onClick', 'onChange', 'children', 'delay', 'error']
+                        for prop in common_props:
+                            try:
+                                if hasattr(props, prop):
+                                    python_props[prop] = getattr(props, prop)
+                            except:
+                                pass
+                        
+                        # Method 2: Try JavaScript enumeration
+                        try:
+                            from js import eval as js_eval
+                            js_code = """
+                            (function(jsObj) {
+                                const result = {};
+                                try {
+                                    for (const key in jsObj) {
+                                        if (jsObj.hasOwnProperty(key)) {
+                                            result[key] = jsObj[key];
+                                        }
+                                    }
+                                } catch (e) {
+                                    // If enumeration fails, try known props
+                                }
+                                return result;
+                            })
+                            """
+                            convert_obj = js_eval(js_code)
+                            js_result = convert_obj(props)
+                            
+                            # Try to extract properties from the result
+                            if hasattr(js_result, 'name'):
+                                python_props['name'] = js_result.name
+                            if hasattr(js_result, 'value'):
+                                python_props['value'] = js_result.value
+                                
+                        except Exception:
+                            # JS enumeration failed, keep what we have
+                            pass
+                    else:
+                        # Fallback to JS conversion for other types
+                        from js import eval as js_eval
+                        js_code = """
+                        (function(jsObj) {
+                            if (!jsObj) return {};
+                            const result = {};
+                            for (const key in jsObj) {
+                                if (jsObj.hasOwnProperty(key)) {
+                                    result[key] = jsObj[key];
+                                }
+                            }
+                            return result;
+                        })
+                        """
+                        convert_obj = js_eval(js_code)
+                        js_dict = convert_obj(props)
+                        if hasattr(js_dict, 'to_py'):
+                            python_props = js_dict.to_py()
+                        else:
+                            python_props = {}
+                except Exception as e:
+                    # Debug the error
+                    try:
+                        from js import console
+                        console.error(f"Props conversion error: {e}")
+                        console.error(f"Props type: {type(props)}")
+                        console.error(f"Props value: {props}")
+                    except:
+                        pass
                     python_props = {}
             else:
                 python_props = {}
