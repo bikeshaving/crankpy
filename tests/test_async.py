@@ -141,7 +141,8 @@ async def test_async_generator_with_async_for():
             yield h.ul[items]
     
     # Test rendering component with async for loops - will fail in MicroPython due to async def + yield
-    result = await renderer.render(h(AsyncForComponent), None)
+    from js import document
+    result = await renderer.render(h(AsyncForComponent), document.body)
     assert result is not None
 
 async def test_async_generator_complex():
@@ -178,15 +179,17 @@ async def test_async_generator_complex():
                     return
     
     # Test rendering complex async generator with state transitions - will fail in MicroPython due to async def + yield
-    result1 = await renderer.render(h(ComplexAsyncGenerator, mode="normal"), None)
+    from js import document
+    
+    result1 = await renderer.render(h(ComplexAsyncGenerator, mode="normal"), document.body)
     assert result1 is not None
     
     # Test loading mode
-    result2 = await renderer.render(h(ComplexAsyncGenerator, mode="loading"), None)
+    result2 = await renderer.render(h(ComplexAsyncGenerator, mode="loading"), document.body)
     assert result2 is not None
     
-    # Test multiple renders to verify state progression
-    result3 = await renderer.render(h(ComplexAsyncGenerator, mode="normal"), None)
+    # Test multiple renders to verify state progression  
+    result3 = await renderer.render(h(ComplexAsyncGenerator, mode="normal"), document.body)
     assert result3 is not None
 
 # Additional sync generator patterns (merged from async_advanced)
@@ -260,8 +263,13 @@ async def test_for_await_of_loading_sequence():
         result = await renderer.render(h(LoadingSequence, message="async-data"), document.body)
         assert result is not None
     except NameError:
-        # Fallback for environments without DOM
-        result = await renderer.render(h(LoadingSequence, message="async-data"), None)
+        # Fallback for environments without DOM - use js.null instead of None
+        try:
+            from js import null as js_null
+            render_root = js_null
+        except ImportError:
+            render_root = None
+        result = await renderer.render(h(LoadingSequence, message="async-data"), render_root)
         assert result is not None
 
 async def test_for_await_of_racing_pattern():
@@ -295,6 +303,11 @@ async def test_for_await_of_racing_pattern():
         result = await renderer.render(h(AsyncLoader, data="test-data"), document.body)
         assert result is not None
     except NameError:
-        # Fallback for environments without DOM
-        result = await renderer.render(h(AsyncLoader, data="test-data"), None)
+        # Fallback for environments without DOM - use js.null instead of None
+        try:
+            from js import null as js_null
+            render_root = js_null
+        except ImportError:
+            render_root = None
+        result = await renderer.render(h(AsyncLoader, data="test-data"), render_root)
         assert result is not None
