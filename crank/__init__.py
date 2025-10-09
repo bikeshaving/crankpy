@@ -46,11 +46,32 @@ except ImportError:
     JsProxy = object  # Fallback type
 
 # Import PyScript modules
-from pyscript.ffi import create_proxy, to_js
+from pyscript.ffi import to_js
 from pyscript.js_modules import crank_core as crank
 
 # Global variable to track if we've patched the as_object_map type yet
 _as_object_map_type_patched = False
+
+# Hybrid proxy strategy: detect interpreter and choose appropriate approach
+_is_micropython = sys.implementation.name == 'micropython'
+_proxy_cache = {} if not _is_micropython else None  # Only cache for Pyodide
+
+if _is_micropython:
+    # MicroPython: Rely on experimental_create_proxy="auto" for automatic management
+    # This prevents Map overflow while maintaining functionality
+    def _create_proxy_hybrid(func):
+        """In MicroPython, auto proxy handles everything - just return the function"""
+        return func
+else:
+    # Pyodide: Use manual proxy management to prevent premature destruction
+    from pyscript.ffi import create_proxy
+    
+    def _create_proxy_hybrid(func):
+        """In Pyodide, use manual proxy with caching to prevent destruction"""
+        func_id = id(func)
+        if func_id not in _proxy_cache:
+            _proxy_cache[func_id] = create_proxy(func)
+        return _proxy_cache[func_id]
 
 def _patch_as_object_map_type():
     """Patch the dynamic type created by as_object_map() to support chainable elements"""
@@ -147,7 +168,8 @@ class Context(_ContextBase):
         if self._cleanup and hasattr(self._cleanup, 'bind'):
             self._cleanup = self._cleanup.bind(js_context)
 
-        # No need to copy attributes - __getattr__ fallback handles JS context access
+        # Hybrid proxy: cache callbacks only for Pyodide
+        self._proxied_callbacks = {} if not _is_micropython else None
 
     def refresh(self, func=None):
         """Can be used as a method call or decorator"""
@@ -172,22 +194,43 @@ class Context(_ContextBase):
     def schedule(self, func):
         """Decorator to schedule a callback before rendering"""
         if self._schedule:
-            proxy = create_proxy(func)
-            self._schedule(proxy)
+            if _is_micropython:
+                # MicroPython: auto proxy handles everything
+                self._schedule(func)
+            else:
+                # Pyodide: manual proxy with caching
+                func_id = id(func)
+                if func_id not in self._proxied_callbacks:
+                    self._proxied_callbacks[func_id] = _create_proxy_hybrid(func)
+                self._schedule(self._proxied_callbacks[func_id])
         return func
 
     def after(self, func):
         """Decorator to schedule a callback after rendering"""
         if self._after:
-            proxy = create_proxy(func)
-            self._after(proxy)
+            if _is_micropython:
+                # MicroPython: auto proxy handles everything
+                self._after(func)
+            else:
+                # Pyodide: manual proxy with caching
+                func_id = id(func)
+                if func_id not in self._proxied_callbacks:
+                    self._proxied_callbacks[func_id] = _create_proxy_hybrid(func)
+                self._after(self._proxied_callbacks[func_id])
         return func
 
     def cleanup(self, func):
         """Decorator to register cleanup callback"""
         if self._cleanup:
-            proxy = create_proxy(func)
-            self._cleanup(proxy)
+            if _is_micropython:
+                # MicroPython: auto proxy handles everything
+                self._cleanup(func)
+            else:
+                # Pyodide: manual proxy with caching
+                func_id = id(func)
+                if func_id not in self._proxied_callbacks:
+                    self._proxied_callbacks[func_id] = _create_proxy_hybrid(func)
+                self._cleanup(self._proxied_callbacks[func_id])
         return func
 
     def __iter__(self):
@@ -282,34 +325,26 @@ class Context(_ContextBase):
                 # Pyodide: Use to_py() method
                 return props.to_py() if props else {}  # type: ignore[return-value]
             else:
-                # MicroPython: Use JavaScript to convert object to avoid dict() iteration bug
+                # MicroPython: Use direct property access instead of JavaScript evaluation
                 if props and sys.implementation.name == 'micropython':
                     try:
-                        from js import eval as js_eval
-                        js_code = """
-                        (function(jsObj) {
-                            if (!jsObj) return {};
-                            const result = {};
-                            for (const key in jsObj) {
-                                if (jsObj.hasOwnProperty(key)) {
-                                    result[key] = jsObj[key];
-                                }
-                            }
-                            return result;
-                        })
-                        """
-                        convert_obj = js_eval(js_code)
-                        js_dict = convert_obj(props)
-
-                        # Convert to Python dict safely
-                        if hasattr(js_dict, 'to_py'):
-                            # PyScript's to_py() method should work safely
-                            return js_dict.to_py()  # type: ignore[return-value]
-                        else:
-                            # Fallback: return empty dict if no to_py method
-                            return {}  # type: ignore[return-value]
+                        # Simplified: Direct property access for common props
+                        result = {}
+                        common_props = ['name', 'value', 'id', 'className', 'onClick', 'onChange', 'children', 'delay', 'error', 'type', 'placeholder', 'disabled', 'checked', 'src', 'alt', 'href', 'target']
+                        
+                        for prop in common_props:
+                            try:
+                                if hasattr(props, prop):
+                                    prop_value = getattr(props, prop, None)
+                                    if prop_value is not None:
+                                        result[prop] = prop_value
+                            except:
+                                # Ignore props we can't access
+                                pass
+                        
+                        return result  # type: ignore[return-value]
                     except Exception:
-                        # Fallback to empty dict if JavaScript conversion fails
+                        # Fallback to empty dict if conversion fails
                         return {}  # type: ignore[return-value]
                 else:
                     # MicroPython with null/empty props, or non-MicroPython fallback
@@ -355,20 +390,12 @@ class SymbolIteratorWrapper:
     
     def _create_sync_iterator_function(self):
         """Create a JavaScript function that returns a sync iterator"""
-        from pyscript.ffi import create_proxy
-        
-        # Create the iterator function using a simple closure
         def iterator_function():
             return self._create_sync_iterator()
-        
-        # Must proxy the iterator function for MicroPython
-        return create_proxy(iterator_function)
+        return _create_proxy_hybrid(iterator_function)
     
     def _create_sync_iterator(self):
         """Create the actual sync iterator object"""
-        from pyscript.ffi import create_proxy
-        
-        # Create iterator object with next() method
         def next_method():
             try:
                 # Handle first value if we have one cached
@@ -384,22 +411,17 @@ class SymbolIteratorWrapper:
             except Exception:
                 return {"value": None, "done": True}
         
-        # Return iterator object with proxied next method
-        return {"next": create_proxy(next_method)}
+        # Return iterator object with hybrid-proxied next method
+        return {"next": _create_proxy_hybrid(next_method)}
     
     def _create_async_iterator_function(self):
         """Create a JavaScript function that returns an async iterator"""
-        from pyscript.ffi import create_proxy
-        
         def iterator_function():
             return self._create_async_iterator()
-        
-        # Must proxy the iterator function for MicroPython
-        return create_proxy(iterator_function)
+        return _create_proxy_hybrid(iterator_function)
     
     def _create_async_iterator(self):
         """Create the actual async iterator object"""
-        from pyscript.ffi import create_proxy
         from js import Promise
         
         def next_method():
@@ -417,8 +439,8 @@ class SymbolIteratorWrapper:
             except Exception:
                 return Promise.resolve({"value": None, "done": True})
         
-        # Return async iterator object with proxied next method
-        return {"next": create_proxy(next_method)}
+        # Return async iterator object with hybrid-proxied next method
+        return {"next": _create_proxy_hybrid(next_method)}
 
     def __iter__(self):
         """Return self for Python iteration protocol"""
@@ -600,7 +622,6 @@ def create_js_iterable(generator_or_value):
 def _create_micropython_context_iterator(context_obj):
     """Create a JavaScript object with Symbol.iterator for Context objects in MicroPython"""
     from js import eval as js_eval
-    from pyscript.ffi import create_proxy
     
     def get_current_props():
         """Get current props from context each time next() is called"""
@@ -608,25 +629,19 @@ def _create_micropython_context_iterator(context_obj):
             if hasattr(context_obj._js_context, 'props'):
                 props = context_obj._js_context.props
                 if props:
-                    # Convert props using the same logic as context_generator
-                    js_code = """
-                    (function(jsObj) {
-                        if (!jsObj) return {};
-                        const result = {};
-                        for (const key in jsObj) {
-                            if (jsObj.hasOwnProperty(key)) {
-                                result[key] = jsObj[key];
-                            }
-                        }
-                        return result;
-                    })
-                    """
-                    convert_obj = js_eval(js_code)
-                    js_dict = convert_obj(props)
-                    if hasattr(js_dict, 'to_py'):
-                        return js_dict.to_py()
-                    else:
-                        return {}
+                    # Use simplified direct property access instead of JS evaluation
+                    result = {}
+                    common_props = ['name', 'value', 'id', 'className', 'onClick', 'onChange', 'children', 'delay', 'error', 'type', 'placeholder', 'disabled', 'checked', 'src', 'alt', 'href', 'target']
+                    
+                    for prop in common_props:
+                        try:
+                            if hasattr(props, prop):
+                                prop_value = getattr(props, prop, None)
+                                if prop_value is not None:
+                                    result[prop] = prop_value
+                        except:
+                            pass
+                    return result
                 else:
                     return {}
             else:
@@ -642,8 +657,8 @@ def _create_micropython_context_iterator(context_obj):
         except Exception:
             return {"value": {}, "done": False}
     
-    # Create a proxied version that JavaScript can call
-    proxied_next = create_proxy(context_next)
+    # Hybrid proxy: use appropriate strategy based on interpreter
+    proxied_next = _create_proxy_hybrid(context_next)
     
     # Use JavaScript to create the wrapper object with Symbol.iterator
     js_code = """
@@ -665,7 +680,6 @@ def _create_micropython_context_iterator(context_obj):
 def _create_micropython_iterator_wrapper(python_generator, first_value):
     """Create a JavaScript object with Symbol.iterator that works in MicroPython"""
     from js import eval as js_eval
-    from pyscript.ffi import create_proxy
     
     # Create a simple next function that MicroPython can call
     first_value_consumed = [False]  # Use list for closure
@@ -685,8 +699,8 @@ def _create_micropython_iterator_wrapper(python_generator, first_value):
         except Exception:
             return {"value": None, "done": True}
     
-    # Create a proxied version that JavaScript can call
-    proxied_next = create_proxy(python_next)
+    # Hybrid proxy: use appropriate strategy based on interpreter
+    proxied_next = _create_proxy_hybrid(python_next)
     
     # Use JavaScript to create the wrapper object with Symbol.iterator
     js_code = """
@@ -750,83 +764,26 @@ def component(func: Callable) -> Callable:
             # Pyodide: Use to_py() method
             python_props = props.to_py() if props else {}
         else:
-            # MicroPython: Handle JsProxy objects directly
+            # MicroPython: Use direct property access instead of JavaScript evaluation
             if props and sys.implementation.name == 'micropython':
                 try:
-                    # Check if props is a JsProxy (common in MicroPython)
-                    if type(props).__name__ == 'JsProxy':
-                        # Use safer property enumeration for JsProxy
-                        python_props = {}
-
-                        # Method 1: Try direct property access for known common props
-                        common_props = ['name', 'value', 'id', 'className', 'onClick', 'onChange', 'children', 'delay', 'error']
-                        for prop in common_props:
-                            try:
-                                if hasattr(props, prop):
-                                    python_props[prop] = getattr(props, prop)
-                            except:
-                                pass
-
-                        # Method 2: Try JavaScript enumeration
+                    # Simplified: Try direct property access for common props only
+                    python_props = {}
+                    # Common props that components typically use
+                    common_props = ['name', 'value', 'id', 'className', 'onClick', 'onChange', 'children', 'delay', 'error', 'type', 'placeholder', 'disabled', 'checked', 'src', 'alt', 'href', 'target']
+                    
+                    for prop in common_props:
                         try:
-                            from js import eval as js_eval
-                            js_code = """
-                            (function(jsObj) {
-                                const result = {};
-                                try {
-                                    for (const key in jsObj) {
-                                        if (jsObj.hasOwnProperty(key)) {
-                                            result[key] = jsObj[key];
-                                        }
-                                    }
-                                } catch (e) {
-                                    // If enumeration fails, try known props
-                                }
-                                return result;
-                            })
-                            """
-                            convert_obj = js_eval(js_code)
-                            js_result = convert_obj(props)
-
-                            # Try to extract properties from the result
-                            if hasattr(js_result, 'name'):
-                                python_props['name'] = js_result.name
-                            if hasattr(js_result, 'value'):
-                                python_props['value'] = js_result.value
-
-                        except Exception:
-                            # JS enumeration failed, keep what we have
+                            if hasattr(props, prop):
+                                prop_value = getattr(props, prop, None)
+                                if prop_value is not None:
+                                    python_props[prop] = prop_value
+                        except:
+                            # Ignore props we can't access
                             pass
-                    else:
-                        # Fallback to JS conversion for other types
-                        from js import eval as js_eval
-                        js_code = """
-                        (function(jsObj) {
-                            if (!jsObj) return {};
-                            const result = {};
-                            for (const key in jsObj) {
-                                if (jsObj.hasOwnProperty(key)) {
-                                    result[key] = jsObj[key];
-                                }
-                            }
-                            return result;
-                        })
-                        """
-                        convert_obj = js_eval(js_code)
-                        js_dict = convert_obj(props)
-                        if hasattr(js_dict, 'to_py'):
-                            python_props = js_dict.to_py()
-                        else:
-                            python_props = {}
-                except Exception as e:
-                    # Debug the error
-                    try:
-                        from js import console
-                        console.error(f"Props conversion error: {e}")
-                        console.error(f"Props type: {type(props)}")
-                        console.error(f"Props value: {props}")
-                    except:
-                        pass
+                    
+                except Exception:
+                    # If any error occurs, fall back to empty props
                     python_props = {}
             else:
                 python_props = {}
@@ -964,8 +921,8 @@ def component(func: Callable) -> Callable:
                 f"Expected 0, 1 (ctx), or 2 (ctx, props) parameters."
             )
 
-    # Proxy the wrapper function for Crank to call
-    return create_proxy(wrapper)
+    # Hybrid proxy: use appropriate strategy based on interpreter
+    return _create_proxy_hybrid(wrapper)
 
 # MagicH element
 # Also known as Pythonic HyperScript
@@ -1069,7 +1026,8 @@ Pythonic HyperScript - Supported Patterns
         processed = {}
         for key, value in props.items():
             if callable(value):
-                processed[key] = create_proxy(value)
+                # Hybrid proxy: use appropriate strategy based on interpreter
+                processed[key] = _create_proxy_hybrid(value)
             else:
                 processed[key] = value
         return processed
@@ -1166,7 +1124,7 @@ class ElementBuilder:
         self.props = props
         self._element = None  # Lazy-created element
 
-    def _is_micropython(self):
+    def _is_micropython_runtime(self):
         """Detect if running on MicroPython runtime."""
         import sys
         return sys.implementation.name == 'micropython'
@@ -1234,7 +1192,7 @@ class ElementBuilder:
     def _make_chainable_element(self, element, props):
         """Convert element into a chainable version using runtime-specific approach"""
         try:
-            if self._is_micropython():
+            if self._is_micropython_runtime():
                 # MicroPython: Use simple Python proxy wrapper
                 return self._create_micropython_chainable(element, props)
             else:
@@ -1272,10 +1230,8 @@ class ElementBuilder:
                     # Already a proxy
                     processed[key] = value
                 else:
-                    # Create a proxy for the callable
-                    proxy = create_proxy(value)
-                    # _proxy_cache.append(proxy)
-                    processed[key] = proxy
+                    # Hybrid proxy: use appropriate strategy based on interpreter
+                    processed[key] = _create_proxy_hybrid(value)
             elif isinstance(value, dict):
                 # Recursively process nested dicts
                 processed[key] = self._process_props_for_proxies(value)
@@ -1284,9 +1240,8 @@ class ElementBuilder:
                 processed_list = []
                 for item in value:
                     if callable(item) and not (hasattr(item, 'toString') or str(type(item)).startswith("<class 'pyodide.ffi.JsProxy'>")):
-                        proxy = create_proxy(item)
-                        # _proxy_cache.append(proxy)
-                        processed_list.append(proxy)
+                        # Hybrid proxy: use appropriate strategy based on interpreter
+                        processed_list.append(_create_proxy_hybrid(item))
                     else:
                         processed_list.append(item)
                 processed[key] = processed_list
