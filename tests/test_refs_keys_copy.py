@@ -57,25 +57,41 @@ def test_basic_keys():
     assert div is not None
 
 def test_key_reordering():
-    """Test that keys help with element reordering"""
-    from crank import h
+    """Test that keyed elements maintain DOM identity across reorders"""
+    from crank import h, component
+    from crank.dom import renderer
+    from js import document
     
-    # Original order
-    original = h.div[
-        h.span(key="1")["First"],
-        h.span(key="2")["Second"],
-        h.span(key="3")["Third"]
-    ]
+    @component
+    def KeyedList(ctx, props):
+        order = props.get("order", ["1", "2", "3"])
+        for _ in ctx:
+            yield h.div[[
+                h.span(key=key)[f"Item {key}"] for key in order
+            ]]
     
-    # Reordered
-    reordered = h.div[
-        h.span(key="3")["Third"],
-        h.span(key="1")["First"], 
-        h.span(key="2")["Second"]
-    ]
+    # Render initial order [1, 2, 3]
+    renderer.render(h(KeyedList, order=["1", "2", "3"]), document.body)
+    original_spans = list(document.querySelectorAll("span"))
     
-    assert original is not None
-    assert reordered is not None
+    # Store references to original DOM elements by their key
+    span1_ref = original_spans[0]  # key="1", position 0
+    span2_ref = original_spans[1]  # key="2", position 1  
+    span3_ref = original_spans[2]  # key="3", position 2
+    
+    # Render reordered [3, 1, 2] - keyed elements should maintain identity
+    renderer.render(h(KeyedList, order=["3", "1", "2"]), document.body)
+    reordered_spans = list(document.querySelectorAll("span"))
+    
+    # Verify DOM element identity preserved despite position changes
+    assert reordered_spans[0] is span3_ref  # key="3" moved from pos 2 to pos 0
+    assert reordered_spans[1] is span1_ref  # key="1" moved from pos 0 to pos 1
+    assert reordered_spans[2] is span2_ref  # key="2" moved from pos 1 to pos 2
+    
+    # Verify content matches the new order
+    assert reordered_spans[0].textContent == "Item 3"
+    assert reordered_spans[1].textContent == "Item 1"
+    assert reordered_spans[2].textContent == "Item 2"
 
 def test_keyed_arrays():
     """Test keyed arrays and manipulation"""

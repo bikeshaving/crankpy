@@ -3,20 +3,25 @@ Component functionality tests - implementation agnostic
 """
 
 def test_simple_component():
-    """Test basic component functionality"""
+    """Test basic component functionality with actual rendering"""
     from crank import h, component
+    from crank.dom import renderer
+    from js import document
     
     @component
     def SimpleComponent(ctx):
         for _ in ctx:
             yield h.div["Simple component"]
     
-    element = h(SimpleComponent)
-    assert element is not None
+    # Test actual rendering
+    result = renderer.render(h(SimpleComponent), document.body)
+    assert result is not None
 
 def test_component_with_props():
-    """Test component with props"""
+    """Test component with props and actual rendering"""
     from crank import h, component
+    from crank.dom import renderer
+    from js import document
     
     @component
     def PropsComponent(ctx, props):
@@ -24,8 +29,17 @@ def test_component_with_props():
         for _ in ctx:
             yield h.div[f"Hello {name}"]
     
-    element = h(PropsComponent, name="Test")
-    assert element is not None
+    # Test actual rendering with props and verify prop handling
+    renderer.render(h(PropsComponent, name="Test"), document.body)
+    
+    # Verify props were correctly processed and rendered
+    rendered_div = document.querySelector("div")
+    assert rendered_div is not None
+    assert rendered_div.textContent == "Hello Test"
+    
+    # Test with different props to verify dynamic behavior
+    renderer.render(h(PropsComponent, name="World"), document.body)
+    assert rendered_div.textContent == "Hello World"
 
 def test_component_context_only():
     """Test component with context only"""

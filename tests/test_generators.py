@@ -3,8 +3,10 @@ Generator and async generator component tests - implementation agnostic
 """
 
 def test_simple_generator():
-    """Test simple generator component"""
+    """Test simple generator component with actual rendering"""
     from crank import h, component
+    from crank.dom import renderer
+    from js import document
     
     @component
     def SimpleGenerator(ctx):
@@ -13,12 +15,19 @@ def test_simple_generator():
             count += 1
             yield h.div[f"Render {count}"]
     
-    element = h(SimpleGenerator)
-    assert element is not None
+    # Test actual rendering and verify DOM content
+    renderer.render(h(SimpleGenerator), document.body)
+    
+    # Verify the generator actually rendered content to DOM
+    rendered_div = document.querySelector("div")
+    assert rendered_div is not None
+    assert "Render 1" in rendered_div.textContent
 
 def test_generator_with_state():
-    """Test generator component with internal state"""
+    """Test generator component with internal state and actual rendering"""
     from crank import h, component
+    from crank.dom import renderer
+    from js import document
     
     @component
     def StatefulGenerator(ctx, props):
@@ -29,12 +38,19 @@ def test_generator_with_state():
             state["counter"] += increment
             yield h.div[f"Counter: {state['counter']}"]
     
-    element = h(StatefulGenerator, increment=2)
-    assert element is not None
+    # Test actual rendering and verify state management
+    renderer.render(h(StatefulGenerator, increment=2), document.body)
+    
+    # Verify state was properly managed and rendered
+    rendered_div = document.querySelector("div")
+    assert rendered_div is not None
+    assert "Counter: 2" in rendered_div.textContent  # Should increment by 2
 
-def test_async_generator():
-    """Test async generator component"""
+async def test_async_generator():
+    """Test async generator component with actual rendering"""
     from crank import h, component
+    from crank.dom import renderer
+    from js import document
     
     @component
     async def AsyncGenerator(ctx, props):
@@ -44,8 +60,9 @@ def test_async_generator():
             delay = props.get("delay", 0)
             yield h.div[f"Async render {count} (delay: {delay})"]
     
-    element = h(AsyncGenerator, delay=100)
-    assert element is not None
+    # Test actual async rendering - will fail in MicroPython due to async def + yield
+    result = await renderer.render(h(AsyncGenerator, delay=100), document.body)
+    assert result is not None
 
 def test_generator_with_props_changes():
     """Test generator responding to prop changes"""
