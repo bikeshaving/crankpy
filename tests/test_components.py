@@ -25,9 +25,13 @@ def test_component_with_props():
     
     @component
     def PropsComponent(ctx, props):
-        name = props.get("name", "World")
-        for _ in ctx:
+        # Generator components should receive new props on each iteration
+        for props in ctx:  # This should receive updated props
+            name = props.get("name", "World")
             yield h.div[f"Hello {name}"]
+    
+    # Clear DOM first to avoid conflicts
+    document.body.innerHTML = ""
     
     # Test actual rendering with props and verify prop handling
     renderer.render(h(PropsComponent, name="Test"), document.body)
@@ -39,34 +43,56 @@ def test_component_with_props():
     
     # Test with different props to verify dynamic behavior
     renderer.render(h(PropsComponent, name="World"), document.body)
-    assert rendered_div.textContent == "Hello World"
+    
+    # Verify props update correctly
+    updated_div = document.querySelector("div")
+    assert updated_div is not None
+    assert updated_div.textContent == "Hello World"
 
 def test_component_context_only():
     """Test component with context only"""
     from crank import h, component
+    from crank.dom import renderer
+    from js import document
     
     @component  
     def ContextComponent(ctx):
         for _ in ctx:
             yield h.div["Context only"]
     
-    element = h(ContextComponent)
-    assert element is not None
+    # Clear DOM and render
+    document.body.innerHTML = ""
+    renderer.render(h(ContextComponent), document.body)
+    
+    # Verify component rendered correctly
+    rendered_div = document.querySelector("div")
+    assert rendered_div is not None
+    assert rendered_div.textContent == "Context only"
 
 def test_component_no_params():
     """Test component with no parameters"""
     from crank import h, component
+    from crank.dom import renderer
+    from js import document
     
     @component
     def NoParamsComponent():
         return h.div["No params"]
     
-    element = h(NoParamsComponent)
-    assert element is not None
+    # Clear DOM and render
+    document.body.innerHTML = ""
+    renderer.render(h(NoParamsComponent), document.body)
+    
+    # Verify component rendered correctly
+    rendered_div = document.querySelector("div")
+    assert rendered_div is not None
+    assert rendered_div.textContent == "No params"
 
 def test_generator_component():
     """Test generator component"""
     from crank import h, component
+    from crank.dom import renderer
+    from js import document
     
     @component
     def GeneratorComponent(ctx):
@@ -74,11 +100,17 @@ def test_generator_component():
             count = props.get("count", 0)
             yield h.div[f"Count: {count}"]
     
-    element = h(GeneratorComponent, count=5)
-    assert element is not None
+    # Clear DOM and render
+    document.body.innerHTML = ""
+    renderer.render(h(GeneratorComponent, count=5), document.body)
+    
+    # Verify generator component rendered with props
+    rendered_div = document.querySelector("div")
+    assert rendered_div is not None
+    assert rendered_div.textContent == "Count: 5"
 
 def test_async_generator_component():
-    """Test async generator component"""
+    """Test async generator component creation (Pyodide only)"""
     from crank import h, component
     
     @component
@@ -87,12 +119,15 @@ def test_async_generator_component():
             value = props.get("value", "default")
             yield h.div[f"Async: {value}"]
     
+    # Test component creation (async def + yield only works in Pyodide)
     element = h(AsyncGeneratorComponent, value="test")
     assert element is not None
 
 def test_nested_components():
-    """Test nested components"""
+    """Test nested components with real rendering"""
     from crank import h, component
+    from crank.dom import renderer
+    from js import document
     
     @component
     def InnerComponent(ctx, props):
@@ -109,12 +144,23 @@ def test_nested_components():
                 h(InnerComponent, text="nested")
             ]
     
-    element = h(OuterComponent, title="Test Title")
-    assert element is not None
+    # Clear DOM and render nested components
+    document.body.innerHTML = ""
+    renderer.render(h(OuterComponent, title="Test Title"), document.body)
+    
+    # Verify nested structure rendered correctly
+    rendered_h1 = document.querySelector("h1")
+    rendered_span = document.querySelector("span")
+    assert rendered_h1 is not None
+    assert rendered_span is not None
+    assert rendered_h1.textContent == "Test Title"
+    assert rendered_span.textContent == "nested"
 
 def test_component_with_children():
-    """Test component that renders children"""
+    """Test component that renders children with real rendering"""
     from crank import h, component
+    from crank.dom import renderer
+    from js import document
     
     @component
     def WrapperComponent(ctx, props):
@@ -124,26 +170,50 @@ def test_component_with_children():
                 props.get("children", [])
             ]
     
-    element = h(WrapperComponent, children=[
+    # Clear DOM and render component with children
+    document.body.innerHTML = ""
+    renderer.render(h(WrapperComponent, children=[
         h.p["Child 1"],
         h.p["Child 2"]
-    ])
-    assert element is not None
+    ]), document.body)
+    
+    # Verify wrapper and children rendered correctly
+    wrapper_div = document.querySelector("div.wrapper")
+    wrapper_h2 = document.querySelector("h2")
+    child_paragraphs = list(document.querySelectorAll("p"))
+    
+    assert wrapper_div is not None
+    assert wrapper_h2 is not None
+    assert wrapper_h2.textContent == "Wrapper"
+    assert len(child_paragraphs) == 2
+    assert child_paragraphs[0].textContent == "Child 1"
+    assert child_paragraphs[1].textContent == "Child 2"
 
 def test_component_conditional_rendering():
     """Test component with conditional rendering"""
     from crank import h, component
+    from crank.dom import renderer
+    from js import document
     
     @component
     def ConditionalComponent(ctx, props):
-        show = props.get("show", True)
-        for _ in ctx:
+        for props in ctx:  # Receive updated props properly
+            show = props.get("show", True)
             if show:
                 yield h.div["Visible"]
             else:
                 yield h.div["Hidden"]
     
-    visible = h(ConditionalComponent, show=True)
-    hidden = h(ConditionalComponent, show=False)
-    assert visible is not None
-    assert hidden is not None
+    # Test visible condition
+    document.body.innerHTML = ""
+    renderer.render(h(ConditionalComponent, show=True), document.body)
+    visible_div = document.querySelector("div")
+    assert visible_div is not None
+    assert visible_div.textContent == "Visible"
+    
+    # Test hidden condition
+    document.body.innerHTML = ""
+    renderer.render(h(ConditionalComponent, show=False), document.body)
+    hidden_div = document.querySelector("div")
+    assert hidden_div is not None
+    assert hidden_div.textContent == "Hidden"
