@@ -5,11 +5,7 @@ Portal tests - rendering components to different DOM locations
 def test_basic_portal_creation():
     """Test basic portal component creation"""
     from crank import h
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     
     # Create target container
     target = document.createElement("div")
@@ -33,11 +29,7 @@ def test_portal_rendering_to_different_container():
     """Test rendering portal content to a different DOM container"""
     from crank import h
     from crank.dom import renderer
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     
     # Create separate containers
     main_container = document.createElement("div")
@@ -77,11 +69,7 @@ def test_portal_with_components():
     """Test portal containing component hierarchies"""
     from crank import h, component
     from crank.dom import renderer
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     
     @component
     def PortalComponent(ctx, props):
@@ -130,11 +118,7 @@ def test_modal_portal_pattern():
     """Test common modal portal pattern"""
     from crank import h, component
     from crank.dom import renderer
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     
     @component
     def Modal(ctx, props):
@@ -196,11 +180,7 @@ def test_tooltip_portal_pattern():
     """Test tooltip portal pattern with positioning"""
     from crank import h, component
     from crank.dom import renderer
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     
     @component
     def Tooltip(ctx, props):
@@ -251,12 +231,7 @@ def test_portal_event_handling():
     """Test event handling in portal content"""
     from crank import h, component
     from crank.dom import renderer
-    try:
-        from js import document, Event
-    except ImportError:
-        import js
-        document = js.document
-        Event = js.Event
+    from js import document, Event
     
     # Track events
     event_log = []
@@ -318,11 +293,7 @@ def test_nested_portal_containers():
     """Test portals within portals"""
     from crank import h
     from crank.dom import renderer
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     
     # Create nested container structure
     level1 = document.createElement("div")
@@ -367,11 +338,7 @@ def test_portal_cleanup():
     """Test portal content cleanup when removed"""
     from crank import h, component
     from crank.dom import renderer
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     
     @component
     def CleanupPortal(ctx, props):
@@ -414,11 +381,7 @@ def test_portal_with_dynamic_target():
     """Test portal with dynamically changing target containers"""
     from crank import h
     from crank.dom import renderer
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     
     # Create multiple possible targets
     target1 = document.createElement("div")
@@ -461,11 +424,7 @@ def test_portal_document_structure():
     """Test portal affecting document structure and accessibility"""
     from crank import h, component
     from crank.dom import renderer
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     
     @component
     def AccessibleModal(ctx, props):

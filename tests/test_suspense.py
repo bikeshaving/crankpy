@@ -7,11 +7,7 @@ def test_suspense_with_loading_states():
     from crank import h, component
     from crank.async_ import Suspense
     from crank.dom import renderer
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     import asyncio
     
     @component
@@ -46,11 +42,7 @@ def test_nested_suspense_boundaries():
     from crank import h, component
     from crank.async_ import Suspense
     from crank.dom import renderer
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     import asyncio
     
     @component
@@ -95,11 +87,7 @@ def test_suspense_error_boundaries():
     from crank import h, component
     from crank.async_ import Suspense
     from crank.dom import renderer
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     import asyncio
     
     @component
@@ -153,11 +141,7 @@ def test_suspense_list_ordering():
     from crank import h, component
     from crank.async_ import Suspense, SuspenseList
     from crank.dom import renderer
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     import asyncio
     
     @component
@@ -206,11 +190,7 @@ def test_suspense_with_conditional_rendering():
     from crank import h, component
     from crank.async_ import Suspense
     from crank.dom import renderer
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     import asyncio
     
     @component
@@ -262,11 +242,7 @@ def test_suspense_with_data_fetching():
     from crank import h, component
     from crank.async_ import Suspense
     from crank.dom import renderer
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     import asyncio
     
     async def fetch_user_data(user_id):
@@ -316,11 +292,7 @@ def test_suspense_with_racing_components():
     from crank import h, component
     from crank.async_ import Suspense
     from crank.dom import renderer
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     import asyncio
     
     @component
@@ -362,11 +334,7 @@ def test_suspense_update_patterns():
     from crank import h, component
     from crank.async_ import Suspense
     from crank.dom import renderer
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     import asyncio
     
     @component
@@ -408,11 +376,7 @@ def test_suspense_with_fragments():
     from crank import h, component, Fragment
     from crank.async_ import Suspense
     from crank.dom import renderer
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     import asyncio
     
     @component
@@ -456,11 +420,7 @@ def test_suspense_timeout_handling():
     from crank import h, component
     from crank.async_ import Suspense
     from crank.dom import renderer
-    try:
-        from js import document
-    except ImportError:
-        import js
-        document = js.document
+    from js import document
     import asyncio
     
     @component

@@ -137,7 +137,11 @@ async def run_tests(runtime: str = "pyodide"):
                     "./tests/test_hyperscript.py": "test_hyperscript.py",
                     "./tests/test_generators.py": "test_generators.py",
                     "./tests/test_dynamic_tags.py": "test_dynamic_tags.py",
-                    "./tests/test_refs_keys_copy.py": "test_refs_keys_copy.py"
+                    "./tests/test_refs_keys_copy.py": "test_refs_keys_copy.py",
+                    "./tests/test_portals.py": "test_portals.py",
+                    "./tests/test_suspense.py": "test_suspense.py",
+                    "./tests/test_errors.py": "test_errors.py",
+                    "./tests/test_events.py": "test_events.py"
                 },
                 "js_modules": {
                     "main": {
@@ -168,7 +172,11 @@ async def run_tests(runtime: str = "pyodide"):
                     "./tests/test_hyperscript.py": "test_hyperscript.py",
                     "./tests/test_generators.py": "test_generators.py",
                     "./tests/test_dynamic_tags.py": "test_dynamic_tags.py",
-                    "./tests/test_refs_keys_copy.py": "test_refs_keys_copy.py"
+                    "./tests/test_refs_keys_copy.py": "test_refs_keys_copy.py",
+                    "./tests/test_portals.py": "test_portals.py",
+                    "./tests/test_suspense.py": "test_suspense.py",
+                    "./tests/test_errors.py": "test_errors.py",
+                    "./tests/test_events.py": "test_events.py"
                 },
                 "js_modules": {
                     "main": {
@@ -203,7 +211,11 @@ async def main():
         "test_hyperscript.py",
         "test_generators.py",
         "test_dynamic_tags.py",
-        "test_refs_keys_copy.py"
+        "test_refs_keys_copy.py",
+        "test_portals.py",
+        "test_suspense.py",
+        "test_errors.py",
+        "test_events.py"
     ]
 
     result = await upytest.run(*test_files)
@@ -270,7 +282,11 @@ async def main():
             "test_hyperscript.py",
             "test_generators.py",
             "test_dynamic_tags.py",
-            "test_refs_keys_copy.py"
+            "test_refs_keys_copy.py",
+            "test_portals.py",
+            "test_suspense.py",
+            "test_errors.py",
+            "test_events.py"
         ]
         
         total_passes = 0
@@ -302,7 +318,11 @@ async def main():
             "test_hyperscript.py",
             "test_generators.py",
             "test_dynamic_tags.py",
-            "test_refs_keys_copy.py"
+            "test_refs_keys_copy.py",
+            "test_portals.py",
+            "test_suspense.py",
+            "test_errors.py",
+            "test_events.py"
         ]
         
         micropython_passes = 0

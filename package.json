@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/bikeshaving/crank-py#readme",
   "dependencies": {
+    "@b9g/crank": "^0.7.1",
     "@micropython/micropython-webassembly-pyscript": "^1.27.0-preview-283",
     "@pyscript/core": "^0.7.1",
     "pyodide": "^0.28.3"
