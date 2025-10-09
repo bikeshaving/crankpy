@@ -190,106 +190,87 @@ class Context(_ContextBase):
             self._cleanup(proxy)
         return func
 
-    def __iter__(self) -> Iterator[T]:
-        """Custom iterator that avoids deprecated ctx.value access"""
-        # Use generator instead of class-based iterator for MicroPython compatibility
-        # Class-based iterators get proxied to JavaScript in MicroPython PyScript
-        def context_generator():
-            # Crank.js contexts yield props indefinitely in for-of loops
-            while True:
-                if hasattr(self._js_context, 'props'):
-                    props = self._js_context.props
-                    # Convert JsProxy to Python dict for dual runtime compatibility
-                    if hasattr(props, 'to_py'):
-                        # Pyodide: Use to_py() method
-                        yield props.to_py() if props else {}  # type: ignore[misc]
-                    else:
-                        # MicroPython: Use safe conversion to avoid dict() iteration bug
-                        if props:
-                            try:
-                                from js import eval as js_eval
-                                js_code = """
-                                (function(jsObj) {
-                                    if (!jsObj) return {};
-                                    const result = {};
-                                    for (const key in jsObj) {
-                                        if (jsObj.hasOwnProperty(key)) {
-                                            result[key] = jsObj[key];
-                                        }
-                                    }
-                                    return result;
-                                })
-                                """
-                                convert_obj = js_eval(js_code)
-                                js_dict = convert_obj(props)
-                                if hasattr(js_dict, 'to_py'):
-                                    yield js_dict.to_py()  # type: ignore[misc]
-                                else:
-                                    yield {}  # type: ignore[misc]
-                            except Exception:
-                                yield {}  # type: ignore[misc]
+    def __iter__(self):
+        """Delegate to JavaScript context's native iterator with props conversion"""
+        # Get the JavaScript iterator
+        js_iterator = iter(self._js_context)
+        
+        # Wrap it to convert props to Python dicts
+        for js_props in js_iterator:
+            # Convert JavaScript props to Python dict
+            if hasattr(js_props, 'to_py'):
+                # Pyodide: Use to_py() method
+                yield js_props.to_py() if js_props else {}
+            else:
+                # MicroPython or fallback: Convert manually
+                if js_props:
+                    try:
+                        # Check if it's already a Python dict
+                        if isinstance(js_props, dict):
+                            yield js_props
+                        # Check if it's a string (not a dict-like object)
+                        elif isinstance(js_props, str):
+                            # Strings are not props objects, yield empty dict
+                            yield {}
                         else:
-                            yield {}  # type: ignore[misc]
+                            # Try to convert JavaScript object to Python dict
+                            python_props = {}
+                            if hasattr(js_props, '__iter__') and not isinstance(js_props, str):
+                                # If it's iterable but not a string, try to extract key-value pairs
+                                for key in js_props:
+                                    try:
+                                        python_props[key] = js_props[key]
+                                    except:
+                                        pass
+                            yield python_props
+                    except:
+                        yield {}
                 else:
-                    yield {}  # type: ignore[misc]
+                    yield {}
 
-        generator = context_generator()
-
-        # Apply SymbolIteratorWrapper in MicroPython to fix iteration bugs
-        if sys.implementation.name == 'micropython':
-            return SymbolIteratorWrapper(generator)
-        else:
-            return generator
-
-    def __aiter__(self) -> AsyncIterator[T]:
-        """Custom async iterator that avoids deprecated ctx.value access"""
-        # Use async generator instead of class-based iterator for MicroPython compatibility
-        async def async_context_generator():
-            # Crank.js async iterators should yield continuously for "continuous mode"
-            while True:
-                if hasattr(self._js_context, 'props'):
-                    props = self._js_context.props
-                    # Convert JsProxy to Python dict for dual runtime compatibility
-                    if hasattr(props, 'to_py'):
-                        # Pyodide: Use to_py() method
-                        yield props.to_py() if props else {}  # type: ignore[misc]
-                    else:
-                        # MicroPython: Use safe conversion to avoid dict() iteration bug
-                        if props:
-                            try:
-                                from js import eval as js_eval
-                                js_code = """
-                                (function(jsObj) {
-                                    if (!jsObj) return {};
-                                    const result = {};
-                                    for (const key in jsObj) {
-                                        if (jsObj.hasOwnProperty(key)) {
-                                            result[key] = jsObj[key];
-                                        }
-                                    }
-                                    return result;
-                                })
-                                """
-                                convert_obj = js_eval(js_code)
-                                js_dict = convert_obj(props)
-                                if hasattr(js_dict, 'to_py'):
-                                    yield js_dict.to_py()  # type: ignore[misc]
-                                else:
-                                    yield {}  # type: ignore[misc]
-                            except Exception:
-                                yield {}  # type: ignore[misc]
+    def __aiter__(self):
+        """Delegate to JavaScript context's native async iterator with props conversion"""
+        # Return an async generator that wraps the JavaScript async iterator
+        return self._async_props_iterator()
+    
+    async def _async_props_iterator(self):
+        """Async generator that converts JavaScript props to Python dicts"""
+        # Get the JavaScript async iterator
+        js_async_iterator = aiter(self._js_context)
+        
+        # Wrap it to convert props to Python dicts
+        async for js_props in js_async_iterator:
+            # Convert JavaScript props to Python dict (same logic as __iter__)
+            if hasattr(js_props, 'to_py'):
+                # Pyodide: Use to_py() method
+                yield js_props.to_py() if js_props else {}
+            else:
+                # MicroPython or fallback: Convert manually
+                if js_props:
+                    try:
+                        # Check if it's already a Python dict
+                        if isinstance(js_props, dict):
+                            yield js_props
+                        # Check if it's a string (not a dict-like object)
+                        elif isinstance(js_props, str):
+                            # Strings are not props objects, yield empty dict
+                            yield {}
                         else:
-                            yield {}  # type: ignore[misc]
+                            # Try to convert JavaScript object to Python dict
+                            python_props = {}
+                            if hasattr(js_props, '__iter__') and not isinstance(js_props, str):
+                                # If it's iterable but not a string, try to extract key-value pairs
+                                for key in js_props:
+                                    try:
+                                        python_props[key] = js_props[key]
+                                    except:
+                                        pass
+                            yield python_props
+                    except:
+                        yield {}
                 else:
-                    yield {}  # type: ignore[misc]
+                    yield {}
 
-        generator = async_context_generator()
-
-        # Apply SymbolIteratorWrapper in MicroPython to fix async iteration bugs
-        if sys.implementation.name == 'micropython':
-            return SymbolIteratorWrapper(generator)
-        else:
-            return generator
 
     @property
     def props(self) -> T:
@@ -355,55 +336,89 @@ class SymbolIteratorWrapper:
         self._is_symbol_iterator_wrapped = True
 
     def __getitem__(self, key):
-        """Handle Symbol.iterator and Symbol.asyncIterator access using pure JavaScript approach"""
-        # Use JavaScript eval to handle everything (workaround for MicroPython iteration bugs)
-        from js import eval as js_eval
-
-        js_code = """
-        (function(pythonKey, pythonGen) {
-            if (pythonKey === Symbol.iterator) {
-                return function() {
-                    return {
-                        next: function() {
-                            try {
-                                const value = pythonGen.__next__();
-                                return { value: value, done: false };
-                            } catch (e) {
-                                return { value: undefined, done: true };
-                            }
-                        }
-                    };
-                };
-            }
-            if (pythonKey === Symbol.asyncIterator) {
-                return function() {
-                    return {
-                        next: function() {
-                            try {
-                                const value = pythonGen.__anext__();
-                                // Handle both sync and async values
-                                if (value && typeof value.then === 'function') {
-                                    return value.then(v => ({ value: v, done: false }))
-                                                .catch(() => ({ value: undefined, done: true }));
-                                } else {
-                                    return Promise.resolve({ value: value, done: false });
-                                }
-                            } catch (e) {
-                                return Promise.resolve({ value: undefined, done: true });
-                            }
-                        }
-                    };
-                };
-            }
-            throw new Error('SymbolIteratorWrapper: Not Symbol.iterator or Symbol.asyncIterator');
-        })
-        """
-
-        try:
-            js_func = js_eval(js_code)
-            return js_func(key, self.python_generator)
-        except Exception:
+        """Handle Symbol.iterator and Symbol.asyncIterator access with MicroPython-compatible approach"""
+        from js import Symbol, console
+        
+        console.log("SymbolIteratorWrapper.__getitem__ called with key:", key)
+        console.log("Symbol.iterator:", Symbol.iterator)
+        console.log("key == Symbol.iterator:", key == Symbol.iterator)
+        
+        if key == Symbol.iterator:
+            console.log("Creating sync iterator function")
+            return self._create_sync_iterator_function()
+        elif key == Symbol.asyncIterator:
+            console.log("Creating async iterator function")
+            return self._create_async_iterator_function()
+        else:
+            console.log("Unsupported key, raising KeyError")
             raise KeyError(f"SymbolIteratorWrapper: Unsupported key {key}")
+    
+    def _create_sync_iterator_function(self):
+        """Create a JavaScript function that returns a sync iterator"""
+        from pyscript.ffi import create_proxy
+        
+        # Create the iterator function using a simple closure
+        def iterator_function():
+            return self._create_sync_iterator()
+        
+        # Must proxy the iterator function for MicroPython
+        return create_proxy(iterator_function)
+    
+    def _create_sync_iterator(self):
+        """Create the actual sync iterator object"""
+        from pyscript.ffi import create_proxy
+        
+        # Create iterator object with next() method
+        def next_method():
+            try:
+                # Handle first value if we have one cached
+                if self._first_value is not None and not self._first_value_consumed:
+                    self._first_value_consumed = True
+                    return {"value": self._first_value, "done": False}
+                
+                # Get next value from generator
+                value = self.python_generator.__next__()
+                return {"value": value, "done": False}
+            except StopIteration:
+                return {"value": None, "done": True}
+            except Exception:
+                return {"value": None, "done": True}
+        
+        # Return iterator object with proxied next method
+        return {"next": create_proxy(next_method)}
+    
+    def _create_async_iterator_function(self):
+        """Create a JavaScript function that returns an async iterator"""
+        from pyscript.ffi import create_proxy
+        
+        def iterator_function():
+            return self._create_async_iterator()
+        
+        # Must proxy the iterator function for MicroPython
+        return create_proxy(iterator_function)
+    
+    def _create_async_iterator(self):
+        """Create the actual async iterator object"""
+        from pyscript.ffi import create_proxy
+        from js import Promise
+        
+        def next_method():
+            try:
+                # Handle first value if we have one cached
+                if self._first_value is not None and not self._first_value_consumed:
+                    self._first_value_consumed = True
+                    return Promise.resolve({"value": self._first_value, "done": False})
+                
+                # Get next value from generator
+                value = self.python_generator.__next__()
+                return Promise.resolve({"value": value, "done": False})
+            except StopIteration:
+                return Promise.resolve({"value": None, "done": True})
+            except Exception:
+                return Promise.resolve({"value": None, "done": True})
+        
+        # Return async iterator object with proxied next method
+        return {"next": create_proxy(next_method)}
 
     def __iter__(self):
         """Return self for Python iteration protocol"""
@@ -582,6 +597,114 @@ def create_js_iterable(generator_or_value):
     return window.crankPyCreateIterable(js_items)
 
 
+def _create_micropython_context_iterator(context_obj):
+    """Create a JavaScript object with Symbol.iterator for Context objects in MicroPython"""
+    from js import eval as js_eval
+    from pyscript.ffi import create_proxy
+    
+    def get_current_props():
+        """Get current props from context each time next() is called"""
+        try:
+            if hasattr(context_obj._js_context, 'props'):
+                props = context_obj._js_context.props
+                if props:
+                    # Convert props using the same logic as context_generator
+                    js_code = """
+                    (function(jsObj) {
+                        if (!jsObj) return {};
+                        const result = {};
+                        for (const key in jsObj) {
+                            if (jsObj.hasOwnProperty(key)) {
+                                result[key] = jsObj[key];
+                            }
+                        }
+                        return result;
+                    })
+                    """
+                    convert_obj = js_eval(js_code)
+                    js_dict = convert_obj(props)
+                    if hasattr(js_dict, 'to_py'):
+                        return js_dict.to_py()
+                    else:
+                        return {}
+                else:
+                    return {}
+            else:
+                return {}
+        except Exception:
+            return {}
+    
+    def context_next():
+        """Always return current props - never done for infinite iteration"""
+        try:
+            props = get_current_props()
+            return {"value": props, "done": False}
+        except Exception:
+            return {"value": {}, "done": False}
+    
+    # Create a proxied version that JavaScript can call
+    proxied_next = create_proxy(context_next)
+    
+    # Use JavaScript to create the wrapper object with Symbol.iterator
+    js_code = """
+    (function(nextFunc) {
+        const obj = {};
+        obj[Symbol.iterator] = function() {
+            return {
+                next: nextFunc
+            };
+        };
+        return obj;
+    })
+    """
+    
+    js_func = js_eval(js_code)
+    return js_func(proxied_next)
+
+
+def _create_micropython_iterator_wrapper(python_generator, first_value):
+    """Create a JavaScript object with Symbol.iterator that works in MicroPython"""
+    from js import eval as js_eval
+    from pyscript.ffi import create_proxy
+    
+    # Create a simple next function that MicroPython can call
+    first_value_consumed = [False]  # Use list for closure
+    
+    def python_next():
+        try:
+            # Handle first value if we have one cached
+            if first_value is not None and not first_value_consumed[0]:
+                first_value_consumed[0] = True
+                return {"value": first_value, "done": False}
+            
+            # Get next value from generator - this should only be called when Crank.js wants it
+            value = python_generator.__next__()
+            return {"value": value, "done": False}
+        except StopIteration:
+            return {"value": None, "done": True}
+        except Exception:
+            return {"value": None, "done": True}
+    
+    # Create a proxied version that JavaScript can call
+    proxied_next = create_proxy(python_next)
+    
+    # Use JavaScript to create the wrapper object with Symbol.iterator
+    js_code = """
+    (function(nextFunc) {
+        const obj = {};
+        obj[Symbol.iterator] = function() {
+            return {
+                next: nextFunc
+            };
+        };
+        return obj;
+    })
+    """
+    
+    js_func = js_eval(js_code)
+    return js_func(proxied_next)
+
+
 def component(func: Callable) -> Callable:
     """Universal component decorator for any function type"""
 
@@ -612,6 +735,12 @@ def component(func: Callable) -> Callable:
     def wrapper(props, ctx):
         """Wrapper that adapts Crank's (props, ctx) calling convention"""
         nonlocal cached_param_count
+        
+        try:
+            from js import console
+            console.log(f"Component wrapper START: {func.__name__}")
+        except:
+            pass
 
         # Wrap the JS context with our Python Context wrapper
         wrapped_ctx = Context(ctx)
@@ -710,6 +839,13 @@ def component(func: Callable) -> Callable:
 
             # Check if we're in MicroPython and result needs wrapping
             if sys.implementation.name == 'micropython':
+                from js import console
+                console.log("MicroPython component wrapper, result type:", type(result))
+                # Check if this is a generator (MicroPython returns raw generators)
+                if hasattr(result, '__next__'):
+                    console.log("Result has __next__, returning generator as-is")
+                    # Return generator as-is - let Crank.js handle it natively
+                    return result
                 # MicroPython async generator strategy:
                 # Treat ALL generators as sync generators to avoid ThenableEvent issues
 
@@ -756,19 +892,19 @@ def component(func: Callable) -> Callable:
                                 # If detection fails, fall back to safe default
                                 is_async_generator = False
 
-                        wrapper = SymbolIteratorWrapper(result, first_value=first_value)
-                        wrapper._detected_as_async_generator = is_async_generator
-                        return wrapper
+                        # For MicroPython, create JavaScript-based iterator wrapper
+                        # Return generator as-is - Crank.js handles iteration natively
+                        from js import console
+                        console.log("Returning generator result, type:", type(result))
+                        return result
 
                     except StopIteration as e:
                         # Immediate StopIteration -> async_function
                         # Return the function's return value directly
                         return e.value if hasattr(e, 'value') else None
                     except Exception:
-                        # Some other error - treat as sync generator to be safe
-                        wrapper = SymbolIteratorWrapper(result)
-                        wrapper._detected_as_async_generator = False
-                        return wrapper
+                        # Some other error - return generator as-is
+                        return result
                 else:
                     # No __next__ method - not a generator result
                     return result
@@ -780,11 +916,14 @@ def component(func: Callable) -> Callable:
         if cached_param_count is not None:
             # Use cached parameter count
             if cached_param_count == 0:
-                return wrap_result(func())
+                result = func()
+                return wrap_result(result)
             elif cached_param_count == 1:
-                return wrap_result(func(wrapped_ctx))
+                result = func(wrapped_ctx)
+                return wrap_result(result)
             else:  # cached_param_count == 2
-                return wrap_result(func(wrapped_ctx, python_props))
+                result = func(wrapped_ctx, python_props)
+                return wrap_result(result)
         else:
             # MicroPython runtime - determine parameter count on first call
             # Try different parameter counts and cache the successful one
