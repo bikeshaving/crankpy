@@ -1,73 +1,37 @@
-"""
-Crank.py - Lightweight Python wrapper for Crank JavaScript framework
-"""
+"""Crank.py - Lightweight Python wrapper for Crank JavaScript framework"""
 
 import inspect
 import sys
-
-# Conditional typing imports for MicroPython compatibility
-try:
-    from typing import (
-        Any,
-        AsyncIterator,
-        Callable,
-        Dict,
-        Generic,
-        Iterator,
-        List,
-        TypedDict,
-        TypeVar,
-        Union,
-    )
-except ImportError:
-    # MicroPython fallback - use minimal typing stub
-    if sys.implementation.name == 'micropython':
-        from .typing_stub import (
-            Any,
-            AsyncIterator,
-            Callable,
-            Dict,
-            Generic,
-            Iterator,
-            List,
-            TypedDict,
-            TypeVar,
-            Union,
-        )
-    else:
-        # Re-raise if not MicroPython
-        raise
-
-# Conditional imports for different Python implementations
-try:
-    from pyodide.ffi import JsProxy
-except ImportError:
-    # MicroPython and regular Python don't have pyodide.ffi
-    JsProxy = object  # Fallback type
-
-# Import PyScript modules
 from pyscript.ffi import to_js
 from pyscript.js_modules import crank_core as crank
 
-# Global variable to track if we've patched the as_object_map type yet
+# Typing imports with MicroPython compatibility
+try:
+    from typing import Any, AsyncIterator, Callable, Dict, Generic, Iterator, List, TypedDict, TypeVar, Union
+except ImportError:
+    if sys.implementation.name == 'micropython':
+        from .typing_stub import Any, AsyncIterator, Callable, Dict, Generic, Iterator, List, TypedDict, TypeVar, Union
+    else:
+        raise
+
+# Pyodide compatibility
+try:
+    from pyodide.ffi import JsProxy
+except ImportError:
+    JsProxy = object
+
+# Global state
 _as_object_map_type_patched = False
-
-# Hybrid proxy strategy: detect interpreter and choose appropriate approach
 _is_micropython = sys.implementation.name == 'micropython'
-_proxy_cache = {} if not _is_micropython else None  # Only cache for Pyodide
+_proxy_cache = {} if not _is_micropython else None
 
+# Hybrid proxy strategy
 if _is_micropython:
-    # MicroPython: Rely on experimental_create_proxy="auto" for automatic management
-    # This prevents Map overflow while maintaining functionality
     def _create_proxy_hybrid(func):
-        """In MicroPython, auto proxy handles everything - just return the function"""
         return func
 else:
-    # Pyodide: Use manual proxy management to prevent premature destruction
     from pyscript.ffi import create_proxy
-    
     def _create_proxy_hybrid(func):
-        """In Pyodide, use manual proxy with caching to prevent destruction"""
         func_id = id(func)
         if func_id not in _proxy_cache:
             _proxy_cache[func_id] = create_proxy(func)
@@ -79,30 +43,24 @@ def _patch_as_object_map_type():
     if _as_object_map_type_patched:
         return
 
-    # Create a dummy element to get the as_object_map type
     dummy_elem = createElement('div', None)
     if hasattr(dummy_elem, 'as_object_map'):
         mapped = dummy_elem.as_object_map()
         mapped_type = type(mapped)
 
-        # Create our chainable __getitem__
         def chainable_getitem(self, children):
-            # Check if this is a chainable element with our custom properties
             if hasattr(self, '_crank_tag') and hasattr(self, '_crank_props'):
-                # This is our chainable element - create element with children
                 if not isinstance(children, (list, tuple)):
                     children = [children]
                 js_children = [to_js(child) if not isinstance(child, str) else child for child in children]
                 js_props = to_js(self._crank_props) if self._crank_props else None
                 return createElement(self._crank_tag, js_props, *js_children)
             else:
-                # Regular as_object_map behavior - try property access
                 try:
                     return getattr(self, children)
                 except AttributeError:
                     raise KeyError(children) from None
 
-        # Patch the type
         mapped_type.__getitem__ = chainable_getitem
         _as_object_map_type_patched = True
 
@@ -116,12 +74,9 @@ Raw = crank.Raw
 Text = crank.Text
 
 # Type variables for generic Context
-# Use try/except for MicroPython compatibility with subscript syntax
 try:
-    T = TypeVar('T', bound=Dict[str, Any])  # Props type
-    TResult = TypeVar('TResult')  # Element result type
-
-    # Type definitions for props and components
+    T = TypeVar('T', bound=Dict[str, Any])
+    TResult = TypeVar('TResult')
     Props = Dict[str, Any]
     Children = Union[str, Element, List["Children"]]
 except TypeError:
@@ -191,47 +146,29 @@ class Context(_ContextBase):
         wrapper.__doc__ = func.__doc__
         return wrapper
 
-    def schedule(self, func):
-        """Decorator to schedule a callback before rendering"""
-        if self._schedule and callable(func):
+    def _register_callback(self, func, callback_method):
+        """Common logic for registering callbacks with proper proxy handling"""
+        if callback_method and callable(func):
             if _is_micropython:
-                # MicroPython: auto proxy handles everything
-                self._schedule(func)
+                callback_method(func)
             else:
-                # Pyodide: manual proxy with caching
                 func_id = id(func)
                 if func_id not in self._proxied_callbacks:
                     self._proxied_callbacks[func_id] = _create_proxy_hybrid(func)
-                self._schedule(self._proxied_callbacks[func_id])
+                callback_method(self._proxied_callbacks[func_id])
         return func
+
+    def schedule(self, func):
+        """Decorator to schedule a callback before rendering"""
+        return self._register_callback(func, self._schedule)
 
     def after(self, func):
         """Decorator to schedule a callback after rendering"""
-        if self._after and callable(func):
-            if _is_micropython:
-                # MicroPython: auto proxy handles everything
-                self._after(func)
-            else:
-                # Pyodide: manual proxy with caching
-                func_id = id(func)
-                if func_id not in self._proxied_callbacks:
-                    self._proxied_callbacks[func_id] = _create_proxy_hybrid(func)
-                self._after(self._proxied_callbacks[func_id])
-        return func
+        return self._register_callback(func, self._after)
 
     def cleanup(self, func):
         """Decorator to register cleanup callback"""
-        if self._cleanup and callable(func):
-            if _is_micropython:
-                # MicroPython: auto proxy handles everything
-                self._cleanup(func)
-            else:
-                # Pyodide: manual proxy with caching
-                func_id = id(func)
-                if func_id not in self._proxied_callbacks:
-                    self._proxied_callbacks[func_id] = _create_proxy_hybrid(func)
-                self._cleanup(self._proxied_callbacks[func_id])
-        return func
+        return self._register_callback(func, self._cleanup)
 
     def __iter__(self):
         """Delegate to JavaScript context's native iterator with props conversion"""
@@ -569,16 +506,13 @@ class SymbolIteratorWrapper:
         return f"SymbolIteratorWrapper({self.python_generator})"
 
 
-# Component decorator
-# JavaScript helper for creating proper iterables in MicroPython
-def _ensure_iterable_helper():
-    """Ensure the JavaScript iterable helper function exists"""
-    from js import window
+def create_js_iterable(generator_or_value):
+    """Create a JavaScript-compatible iterable from a Python generator or value"""
+    from pyscript.ffi import to_js
+    from js import window, eval as js_eval
 
-    # Check if helper already exists
+    # Ensure helper function exists
     if not hasattr(window, 'crankPyCreateIterable'):
-        # Inject the helper function into global scope
-        from js import eval as js_eval
         js_eval("""
         window.crankPyCreateIterable = function(items) {
             return {
@@ -598,23 +532,12 @@ def _ensure_iterable_helper():
         };
         """)
 
-def create_js_iterable(generator_or_value):
-    """Create a JavaScript-compatible iterable from a Python generator or value"""
-    from pyscript.ffi import to_js
-    from js import window
-
-    # Ensure helper function exists
-    _ensure_iterable_helper()
-
     # Convert generator to list of items
     if hasattr(generator_or_value, 'send') or hasattr(generator_or_value, '__next__'):
-        # It's a generator, convert to list
         items = list(generator_or_value)
     else:
-        # Single value, wrap in list
         items = [generator_or_value]
 
-    # Convert to JavaScript array and create proper iterable
     js_items = to_js(items)
     return window.crankPyCreateIterable(js_items)
 
