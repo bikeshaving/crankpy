@@ -9,6 +9,12 @@ Python to JavaScript API Mapping:
 - Both support continuous async rendering and component racing patterns
 """
 
+import sys
+from upytest import skip
+
+# Check if running in MicroPython
+is_micropython = "micropython" in sys.version.lower()
+
 def test_async_imports():
     """Test that async components can be imported"""
     from crank.async_ import lazy, Suspense, SuspenseList
@@ -97,6 +103,7 @@ async def test_async_function_with_await():
     element = await MultiAwaitComponent(ctx, props)
     assert element is not None
 
+@skip("async def + yield not supported in MicroPython", skip_when=is_micropython)
 async def test_async_generator_basic():
     """Test async generator rendering - Pyodide only (fails in MicroPython)"""
     from crank import h, component
@@ -119,6 +126,7 @@ async def test_async_generator_basic():
     # Note: async def + yield only works in Pyodide, not MicroPython
     # This test will fail in MicroPython due to syntax limitations
 
+@skip("async def + yield not supported in MicroPython", skip_when=is_micropython)
 async def test_async_generator_with_async_for():
     """Test async generator with async for loop rendering - Pyodide only"""
     from crank import h, component
@@ -145,6 +153,7 @@ async def test_async_generator_with_async_for():
     result = await renderer.render(h(AsyncForComponent), document.body)
     assert result is not None
 
+@skip("async def + yield not supported in MicroPython", skip_when=is_micropython)
 async def test_async_generator_complex():
     """Test complex async generator rendering patterns - Pyodide only"""
     from crank import h, component
@@ -217,7 +226,7 @@ def test_sync_generator_with_state():
     @component  
     def Counter(ctx, props):
         count = 0
-        while True:
+        for props in ctx:
             yield h.div[f"Count: {count}"]
             count += 1
             if count > 3:
@@ -229,6 +238,7 @@ def test_sync_generator_with_state():
 # Crank.js "for await...of" API equivalent tests
 # These test the Python async for patterns that match JavaScript's for await...of
 
+@skip("async def + yield not supported in MicroPython", skip_when=is_micropython)
 async def test_for_await_of_loading_sequence():
     """Test for await...of loading sequence - Pyodide only (fails in MicroPython)"""
     from crank import h, component
@@ -272,6 +282,7 @@ async def test_for_await_of_loading_sequence():
         result = await renderer.render(h(LoadingSequence, message="async-data"), render_root)
         assert result is not None
 
+@skip("async def + yield not supported in MicroPython", skip_when=is_micropython)
 async def test_for_await_of_racing_pattern():
     """Test component racing with for await...of - Pyodide only (fails in MicroPython)"""
     from crank import h, component
