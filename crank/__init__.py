@@ -290,8 +290,6 @@ class Context(_ContextBase):
 
     def __getattr__(self, name):
         """Fallback to JS context for any missing attributes"""
-        if name == 'value':
-            print("DEBUG: ctx.value accessed via __getattr__!")
         return getattr(self._js_context, name)
 
 
@@ -309,20 +307,13 @@ class SymbolIteratorWrapper:
 
     def __getitem__(self, key):
         """Handle Symbol.iterator and Symbol.asyncIterator access with MicroPython-compatible approach"""
-        from js import Symbol, console
-        
-        console.log("SymbolIteratorWrapper.__getitem__ called with key:", key)
-        console.log("Symbol.iterator:", Symbol.iterator)
-        console.log("key == Symbol.iterator:", key == Symbol.iterator)
+        from js import Symbol
         
         if key == Symbol.iterator:
-            console.log("Creating sync iterator function")
             return self._create_sync_iterator_function()
         elif key == Symbol.asyncIterator:
-            console.log("Creating async iterator function")
             return self._create_async_iterator_function()
         else:
-            console.log("Unsupported key, raising KeyError")
             raise KeyError(f"SymbolIteratorWrapper: Unsupported key {key}")
     
     def _create_sync_iterator_function(self):
@@ -642,6 +633,50 @@ def _create_micropython_iterator_wrapper(python_generator, first_value):
     return js_func(proxied_next)
 
 
+def _create_controlled_thenable_wrapper(python_generator):
+    """Create a thenable wrapper that only advances when Crank.js explicitly calls next()"""
+    from js import eval as js_eval
+    
+    def python_next():
+        try:
+            # Only advance generator when explicitly called by Crank.js
+            value = python_generator.__next__()
+            return {"value": value, "done": False}
+        except StopIteration:
+            return {"value": None, "done": True}
+        except Exception:
+            return {"value": None, "done": True}
+    
+    # Create proxy for the next function
+    proxied_next = _create_proxy_hybrid(python_next)
+    
+    # Create a thenable object that Crank.js can work with
+    js_code = """
+    (function(nextFunc) {
+        const generator = {
+            next: nextFunc,
+            // Make it thenable by adding then() method
+            then: function(resolve, reject) {
+                try {
+                    const result = nextFunc();
+                    resolve(result);
+                } catch (e) {
+                    reject(e);
+                }
+            },
+            // Add Symbol.iterator for proper iteration protocol
+            [Symbol.iterator]: function() {
+                return this;
+            }
+        };
+        return generator;
+    })
+    """
+    
+    js_func = js_eval(js_code)
+    return js_func(proxied_next)
+
+
 def component(func: Callable) -> Callable:
     """Universal component decorator for any function type"""
 
@@ -673,11 +708,6 @@ def component(func: Callable) -> Callable:
         """Wrapper that adapts Crank's (props, ctx) calling convention"""
         nonlocal cached_param_count
         
-        try:
-            from js import console
-            console.log(f"Component wrapper START: {func.__name__}")
-        except:
-            pass
 
         # Wrap the JS context with our Python Context wrapper
         wrapped_ctx = Context(ctx)
@@ -719,13 +749,10 @@ def component(func: Callable) -> Callable:
 
             # Check if we're in MicroPython and result needs wrapping
             if sys.implementation.name == 'micropython':
-                from js import console
-                console.log("MicroPython component wrapper, result type:", type(result))
                 # Check if this is a generator (MicroPython returns raw generators)
                 if hasattr(result, '__next__'):
-                    console.log("Result has __next__, returning generator as-is")
-                    # Return generator as-is - let Crank.js handle it natively
-                    return result
+                    # Create a thenable wrapper that doesn't auto-advance
+                    return _create_controlled_thenable_wrapper(result)
                 # MicroPython async generator strategy:
                 # Treat ALL generators as sync generators to avoid ThenableEvent issues
 
@@ -736,12 +763,28 @@ def component(func: Callable) -> Callable:
                     # sync_function - return as-is
                     return result
 
-                # If inspect says it's a generator function, we need runtime test
+                # Use non-destructive generator detection instead of calling next()
                 if hasattr(result, '__next__'):
+                    # Check if this is actually a generator using non-destructive methods
+                    is_generator = False
                     try:
-                        # Try to get first value - this is the key test
-                        first_value = next(result)
-                        # If we get here, it yielded a value -> it's a generator
+                        # Method 1: Use inspect.isgenerator if available
+                        import inspect
+                        if hasattr(inspect, 'isgenerator'):
+                            is_generator = inspect.isgenerator(result)
+                        else:
+                            # Method 2: Use types.GeneratorType if available
+                            import types
+                            if hasattr(types, 'GeneratorType'):
+                                is_generator = isinstance(result, types.GeneratorType)
+                            else:
+                                # Method 3: Check type string as fallback
+                                is_generator = 'generator' in str(type(result)).lower()
+                    except:
+                        # Fallback: assume it's a generator if it has __next__
+                        is_generator = True
+                    
+                    if is_generator:
 
                         # Determine if this is an async generator
                         # MicroPython limitation: async generators are converted to regular generators
@@ -774,16 +817,9 @@ def component(func: Callable) -> Callable:
 
                         # For MicroPython, create JavaScript-based iterator wrapper
                         # Return generator as-is - Crank.js handles iteration natively
-                        from js import console
-                        console.log("Returning generator result, type:", type(result))
                         return result
-
-                    except StopIteration as e:
-                        # Immediate StopIteration -> async_function
-                        # Return the function's return value directly
-                        return e.value if hasattr(e, 'value') else None
-                    except Exception:
-                        # Some other error - return generator as-is
+                    else:
+                        # Not a generator despite having __next__ - return as-is
                         return result
                 else:
                     # No __next__ method - not a generator result
