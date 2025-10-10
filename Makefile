@@ -12,13 +12,13 @@ test:  ## Run automated upytest with pass/fail results
 		echo "Please run 'make serve' in another terminal, then run 'make test' again."; \
 		exit 1; \
 	fi
-	uv run --group test python test_runner.py
+	uv run --group test python tests/test_runner.py
 
 test-pyodide:  ## Run automated upytest for Pyodide only
-	uv run --group test python test_runner.py --runtime pyodide
+	uv run --group test python tests/test_runner.py --runtime pyodide
 
 test-micropython:  ## Run automated upytest for MicroPython only
-	uv run --group test python test_runner.py --runtime micropython
+	uv run --group test python tests/test_runner.py --runtime micropython
 
 
 lint:  ## Run ruff linter and formatter
