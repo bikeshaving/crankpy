@@ -193,7 +193,7 @@ class Context(_ContextBase):
 
     def schedule(self, func):
         """Decorator to schedule a callback before rendering"""
-        if self._schedule:
+        if self._schedule and callable(func):
             if _is_micropython:
                 # MicroPython: auto proxy handles everything
                 self._schedule(func)
@@ -207,7 +207,7 @@ class Context(_ContextBase):
 
     def after(self, func):
         """Decorator to schedule a callback after rendering"""
-        if self._after:
+        if self._after and callable(func):
             if _is_micropython:
                 # MicroPython: auto proxy handles everything
                 self._after(func)
@@ -221,7 +221,7 @@ class Context(_ContextBase):
 
     def cleanup(self, func):
         """Decorator to register cleanup callback"""
-        if self._cleanup:
+        if self._cleanup and callable(func):
             if _is_micropython:
                 # MicroPython: auto proxy handles everything
                 self._cleanup(func)

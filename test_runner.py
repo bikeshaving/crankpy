@@ -106,7 +106,9 @@ await main()
 
         # Wait for results with fallback for MicroPython AsyncIO bug
         try:
-            await page.wait_for_function("() => window.TEST_RESULT !== undefined", timeout=30000)
+            # Increase timeout for MicroPython since it's much slower
+            timeout_ms = 120000 if runtime == "micropython" else 30000
+            await page.wait_for_function("() => window.TEST_RESULT !== undefined", timeout=timeout_ms)
             result = await page.evaluate("() => window.TEST_RESULT")
         except Exception:
             # Fallback: Parse console output for test results (MicroPython AsyncIO workaround)
@@ -249,7 +251,9 @@ await main()
 
         # Wait for results with fallback for MicroPython AsyncIO bug
         try:
-            await page.wait_for_function("() => window.TEST_RESULT !== undefined", timeout=30000)
+            # Increase timeout for MicroPython since it's much slower
+            timeout_ms = 120000 if runtime == "micropython" else 30000
+            await page.wait_for_function("() => window.TEST_RESULT !== undefined", timeout=timeout_ms)
             result = await page.evaluate("() => window.TEST_RESULT")
         except Exception:
             # Fallback: Parse console output for test results (MicroPython AsyncIO workaround)
