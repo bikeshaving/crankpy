@@ -100,37 +100,22 @@ def test_simple_dom_identity():
     element1 = h.span["Hello"]
     element2 = h.span["Hello"]
     
-    console.log("element1:", element1)
-    console.log("element2:", element2)
-    console.log("element1 === element2:", element1 is element2)
-    console.log("typeof renderer.render:", type(renderer.render))
-    
     # First render - single element
     result1 = renderer.render(element1, document.body)
-    console.log("First render result:", result1)
     
     first_span = document.querySelector("span")
     assert first_span is not None
     assert first_span.textContent == "Hello"
-    console.log("First span:", first_span)
     
     # Second render - same element structure
     result2 = renderer.render(element2, document.body)
-    console.log("Second render result:", result2)
     
     second_span = document.querySelector("span")
     assert second_span is not None
     assert second_span.textContent == "Hello"
-    console.log("Second span:", second_span)
     
     # Check if the DOM node is the same object using js_id
     is_same_node = first_span.js_id == second_span.js_id
-    console.log("DOM nodes identical (js_id):", is_same_node)
-    console.log("first_span.js_id:", first_span.js_id)
-    console.log("second_span.js_id:", second_span.js_id)
-    
-    # Also check if the rendered elements are the same
-    console.log("Render results identical:", result1.js_id == result2.js_id if hasattr(result1, 'js_id') else "No js_id")
     
     # If this fails, DOM reconciliation isn't working at all
     assert is_same_node, "Single element should preserve DOM node identity on re-render"

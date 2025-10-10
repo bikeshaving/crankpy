@@ -27,7 +27,6 @@
                     raise ValueError("Test error")
                 except Exception as e:
                     error_occurred = True
-                    print(f"Error handled: {e}")
             
             for _ in ctx:
                 yield h.div[

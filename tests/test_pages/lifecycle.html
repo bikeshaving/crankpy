@@ -31,11 +31,11 @@
             
             @ctx.cleanup
             def on_cleanup():
-                print("Component cleanup called")
+                pass
             
             @ctx.after
             def after_render(node):
-                print("Component rendered")
+                pass
             
             for _ in ctx:
                 if mounted:

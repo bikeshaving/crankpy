@@ -257,10 +257,6 @@ class TestModule:
                     # A local teardown function.
                     self._teardown = item
                     local_setup_teardown = True
-        if local_setup_teardown:
-            print(
-                f"Using \033[1mlocal\033[0m setup and teardown for \033[1m{self.path}\033[0m."
-            )
 
     @property
     def tests(self):
@@ -348,9 +344,6 @@ def gather_conftest_functions(conftest_path, target):
     """
     conftest_path = str(conftest_path)
     if os.path.exists(conftest_path):
-        print(
-            f"Using \033[1m{conftest_path}\033[0m for setup and teardown for tests in \033[1m{target}\033[0m."
-        )
         conftest = import_module(conftest_path)
         setup = conftest.setup if hasattr(conftest, "setup") else None
         teardown = conftest.teardown if hasattr(conftest, "teardown") else None
@@ -532,12 +525,9 @@ async def run(*args, **kwargs):
     setup and teardown functions can be overridden in the individual test
     modules.
     """
-    print("Python interpreter: \033[1m", sys.platform, sys.version, "\033[0m")
-    print("Running in worker: \033[1m", RUNNING_IN_WORKER, "\033[0m")
     targets = []
     pattern = kwargs.get("pattern", "test_*.py")
     randomize = kwargs.get("random", False)
-    print("Randomize test order: \033[1m", randomize, "\033[0m")
     for arg in args:
         if isinstance(arg, str):
             targets.append(arg)
