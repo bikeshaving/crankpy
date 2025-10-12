@@ -2,14 +2,10 @@
 Crank.py DOM module - Direct import of Crank's DOM renderer
 """
 
-# Import Crank DOM from PyScript's js_modules
-from pyscript.js_modules import crank_dom as _dom
+from pyscript.js_modules import crank_dom
 
 # Export the correct names
-DOMRenderer = _dom.DOMRenderer
-renderer = _dom.renderer
+DOMRenderer = crank_dom.DOMRenderer
+renderer = crank_dom.renderer
 
-# Alias for compatibility
-Renderer = DOMRenderer
-
-__all__ = ['DOMRenderer', 'Renderer', 'renderer']
+__all__ = ['DOMRenderer', 'renderer']

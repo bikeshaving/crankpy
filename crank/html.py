@@ -1,13 +1,11 @@
 """
-Crank.py HTML module - Direct import of Crank's HTML renderer
+Crank.py DOM module - Direct import of Crank's DOM renderer
 """
 
-import js
+from pyscript.js_modules import crank_html
 
-# Access Crank HTML from global scope
-_html = js.CrankHTML
+# Export the correct names
+HTMLRenderer = crank_html.HTMLRenderer
+renderer = crank_html.renderer
 
-Renderer = _html.Renderer
-renderer = _html.renderer
-
-__all__ = ['Renderer', 'renderer']
+__all__ = ['HTMLRenderer', 'renderer']

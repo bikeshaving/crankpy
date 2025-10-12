@@ -4,6 +4,7 @@ import inspect
 import sys
 from pyscript.ffi import to_js
 from pyscript.js_modules import crank_core as crank
+
 # Typing imports with MicroPython compatibility
 try:
     from typing import Any, AsyncIterator, Callable, Dict, Generic, Iterator, List, TypedDict, TypeVar, Union
@@ -12,12 +13,6 @@ except ImportError:
         from .typing_stub import Any, AsyncIterator, Callable, Dict, Generic, Iterator, List, TypedDict, TypeVar, Union
     else:
         raise
-
-# Pyodide compatibility
-try:
-    from pyodide.ffi import JsProxy
-except ImportError:
-    JsProxy = object
 
 # Re-export Crank classes directly
 Element = crank.Element
@@ -143,12 +138,21 @@ class Context(_ContextBase):
     def _register_callback(self, func, callback_method):
         """Common logic for registering callbacks with proper proxy handling"""
         if callback_method and callable(func):
+            # Create a variadic wrapper that accepts 0 or 1 arguments
+            def variadic_wrapper(*args):
+                if len(args) == 0:
+                    return func()
+                elif len(args) == 1:
+                    return func(args[0])
+                else:
+                    raise TypeError(f"Callback function takes at most 1 argument, got {len(args)}")
+            
             if _is_micropython:
-                callback_method(func)
+                callback_method(variadic_wrapper)
             else:
                 func_id = id(func)
                 if func_id not in self._proxied_callbacks:
-                    self._proxied_callbacks[func_id] = _create_proxy_hybrid(func)
+                    self._proxied_callbacks[func_id] = _create_proxy_hybrid(variadic_wrapper)
                 callback_method(self._proxied_callbacks[func_id])
         return func
 
@@ -283,13 +287,6 @@ class Context(_ContextBase):
                     return {}  # type: ignore[return-value]
         return {}  # type: ignore[return-value]
 
-    @property
-    def props(self):
-        """Access current props from context"""
-        try:
-            return getattr(self._js_context, 'props', {})
-        except:
-            return {}
 
     def __getattr__(self, name):
         """Fallback to JS context for any missing attributes"""
@@ -499,169 +496,6 @@ class SymbolIteratorWrapper:
     def __repr__(self):
         return f"SymbolIteratorWrapper({self.python_generator})"
 
-
-def create_js_iterable(generator_or_value):
-    """Create a JavaScript-compatible iterable from a Python generator or value"""
-    from pyscript.ffi import to_js
-    from js import window, eval as js_eval
-
-    # Ensure helper function exists
-    if not hasattr(window, 'crankPyCreateIterable'):
-        js_eval("""
-        window.crankPyCreateIterable = function(items) {
-            return {
-                [Symbol.iterator]: function() {
-                    let index = 0;
-                    return {
-                        next: function() {
-                            if (index < items.length) {
-                                return { value: items[index++], done: false };
-                            } else {
-                                return { value: undefined, done: true };
-                            }
-                        }
-                    };
-                }
-            };
-        };
-        """)
-
-    # Convert generator to list of items
-    if hasattr(generator_or_value, 'send') or hasattr(generator_or_value, '__next__'):
-        items = list(generator_or_value)
-    else:
-        items = [generator_or_value]
-
-    js_items = to_js(items)
-    return window.crankPyCreateIterable(js_items)
-
-
-def _create_micropython_context_iterator(context_obj):
-    """Create a JavaScript object with Symbol.iterator for Context objects in MicroPython"""
-    from js import eval as js_eval
-
-    def get_current_props():
-        """Get current props from context each time next() is called"""
-        try:
-            if hasattr(context_obj._js_context, 'props'):
-                props = context_obj._js_context.props
-                if props:
-                    # Use simplified direct property access instead of JS evaluation
-                    result = {}
-                    common_props = ['name', 'value', 'id', 'className', 'onClick', 'onChange', 'children', 'delay', 'error', 'type', 'placeholder', 'disabled', 'checked', 'src', 'alt', 'href', 'target']
-
-                    for prop in common_props:
-                        try:
-                            if hasattr(props, prop):
-                                prop_value = getattr(props, prop, None)
-                                if prop_value is not None:
-                                    result[prop] = prop_value
-                        except:
-                            pass
-                    return result
-                else:
-                    return {}
-            else:
-                return {}
-        except Exception:
-            return {}
-
-    def context_next():
-        """Always return current props - never done for infinite iteration"""
-        try:
-            props = get_current_props()
-            return {"value": props, "done": False}
-        except Exception:
-            return {"value": {}, "done": False}
-
-    # Hybrid proxy: use appropriate strategy based on interpreter
-    proxied_next = _create_proxy_hybrid(context_next)
-
-    # Use JavaScript to create the wrapper object with Symbol.iterator
-    js_code = """
-    (function(nextFunc) {
-        const obj = {};
-        obj[Symbol.iterator] = function() {
-            return {
-                next: nextFunc
-            };
-        };
-        return obj;
-    })
-    """
-
-    js_func = js_eval(js_code)
-    return js_func(proxied_next)
-
-
-def _create_micropython_iterator_wrapper(python_generator, first_value):
-    """Create a JavaScript object with Symbol.iterator that works in MicroPython"""
-    from js import eval as js_eval
-
-    # Create a simple next function that MicroPython can call
-    first_value_consumed = [False]  # Use list for closure
-
-    def python_next():
-        try:
-            # Handle first value if we have one cached
-            if first_value is not None and not first_value_consumed[0]:
-                first_value_consumed[0] = True
-                return {"value": first_value, "done": False}
-
-            # Get next value from generator - this should only be called when Crank.js wants it
-            value = python_generator.__next__()
-            return {"value": value, "done": False}
-        except StopIteration:
-            return {"value": None, "done": True}
-        except Exception:
-            return {"value": None, "done": True}
-
-    # Hybrid proxy: use appropriate strategy based on interpreter
-    proxied_next = _create_proxy_hybrid(python_next)
-
-    # Use JavaScript to create the wrapper object with Symbol.iterator
-    js_code = """
-    (function(nextFunc) {
-        const obj = {};
-        obj[Symbol.iterator] = function() {
-            return {
-                next: nextFunc
-            };
-        };
-        return obj;
-    })
-    """
-
-    js_func = js_eval(js_code)
-    return js_func(proxied_next)
-
-
-
-def _create_simple_generator_wrapper(python_generator):
-    """Create a minimal generator wrapper for MicroPython that handles bracket syntax safely"""
-
-    def safe_next():
-        try:
-            value = python_generator.__next__()
-            # Apply the same element detection logic we use in wrap_result
-            if hasattr(value, 'tag') or hasattr(value, 'type') or str(type(value)).find('Element') != -1:
-                # This looks like a JavaScript element already, don't convert
-                return {"value": value, "done": False}
-            else:
-                # Convert Python objects to JS, but safely
-                js_value = to_js(value) if value is not None else None
-                return {"value": js_value, "done": False}
-        except StopIteration:
-            return {"value": None, "done": True}
-
-    # Create proxy for the next function
-    proxied_next = _create_proxy_hybrid(safe_next)
-
-    # Return a simple iterator-like object
-    from js import Object
-    iterator = Object.new()
-    iterator.next = proxied_next
-    return iterator
 
 
 def component(func: Callable) -> Callable:
@@ -1017,43 +851,6 @@ Pythonic HyperScript - Supported Patterns
         except Exception:
             return element
 
-class ChainableElement:
-    """Element that perfectly mimics a JS element but supports __getitem__ for chaining"""
-    def __init__(self, element, tag_or_component, props):
-        # Store the JS element and creation info
-        object.__setattr__(self, '_element', element)
-        object.__setattr__(self, '_tag_or_component', tag_or_component)
-        object.__setattr__(self, '_props', props)
-
-    def __getitem__(self, children):
-        # Recreate element with children
-        if not isinstance(children, (list, tuple)):
-            children = [children]
-        js_children = [to_js(child) if not isinstance(child, str) else child for child in children]
-        js_props = to_js(self._props) if self._props else None
-        return createElement(self._tag_or_component, js_props, *js_children)
-
-    def __getattr__(self, name):
-        # Delegate everything to the wrapped element
-        return getattr(self._element, name)
-
-    def __setattr__(self, name, value):
-        # Delegate attribute setting to wrapped element
-        return setattr(self._element, name, value)
-
-    def __str__(self):
-        return str(self._element)
-
-    def __repr__(self):
-        return repr(self._element)
-
-    def __bool__(self):
-        return bool(self._element)
-
-    def __eq__(self, other):
-        if hasattr(other, '_element'):
-            return self._element == other._element
-        return self._element == other
 
 class SimpleMicroPythonWrapper:
     """Extremely minimal wrapper for MicroPython that only adds __getitem__ support."""
@@ -1090,54 +887,6 @@ class SimpleMicroPythonWrapper:
         else:
             setattr(self._js_element, name, value)
 
-class MicroPythonChainableProxy:
-    """Chainable element proxy for MicroPython runtime."""
-
-    def __init__(self, js_element, tag, props):
-        self._js_element = js_element
-        self._tag = tag
-        self._props = props
-
-    def __getitem__(self, children):
-        """Create final element with children when subscripted."""
-        if not isinstance(children, (list, tuple)):
-            children = [children]
-        js_props = to_js(self._props) if self._props else None
-        return createElement(self._tag, js_props, *children)
-
-    def __getattr__(self, name):
-        """Delegate attribute access to the wrapped JS element."""
-        # Prevent infinite recursion by checking if we're accessing our own internal attributes
-        if name.startswith('_'):
-            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
-
-        # Safely delegate to the wrapped element
-        try:
-            return getattr(self._js_element, name)
-        except (AttributeError, RecursionError):
-            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
-
-    def __setattr__(self, name, value):
-        """Handle property setting that Crank does during rendering."""
-        # Handle our internal attributes normally
-        if name.startswith('_'):
-            super().__setattr__(name, value)
-            return
-
-        # For all other attributes, set them on the wrapped element
-        # This is what Crank expects when it does (element as any)[name] = value
-        if hasattr(self, '_js_element'):
-            try:
-                setattr(self._js_element, name, value)
-            except (AttributeError, TypeError):
-                # If we can't set the property, fall back to our own object
-                super().__setattr__(name, value)
-        else:
-            # During initialization, set on ourselves
-            super().__setattr__(name, value)
-
-    def __repr__(self):
-        return f"MicroPythonChainableProxy({self._tag}, {self._props})"
 
 
 class ElementBuilder:
