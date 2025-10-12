@@ -16,7 +16,7 @@ async def run_test(test_file: str, runtime: str):
         script_type = "py"
 
     config["files"] = {
-        "https://raw.githubusercontent.com/pyscript/upytest/refs/heads/main/upytest.py": "upytest.py",
+        "https://raw.githubusercontent.com/ntoll/upytest/1.0.10/upytest.py": "upytest.py",
         "./crank/__init__.py": "crank/__init__.py",
         "./crank/dom.py": "crank/dom.py",
         "./crank/html.py": "crank/html.py",
