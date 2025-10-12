@@ -2,6 +2,12 @@
 Generator and async generator component tests - implementation agnostic
 """
 
+import sys
+from upytest import skip
+
+# Check if running in MicroPython
+is_micropython = "micropython" in sys.version.lower()
+
 def test_simple_generator():
     """Test simple generator component with actual rendering"""
     from crank import h, component
@@ -52,6 +58,7 @@ def test_generator_with_state():
     assert rendered_div is not None
     assert "Counter: 2" in rendered_div.textContent  # Should increment by 2
 
+@skip("async def + yield not supported in MicroPython", skip_when=is_micropython)
 async def test_async_generator():
     """Test async generator component with actual rendering"""
     from crank import h, component

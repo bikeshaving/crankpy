@@ -2,6 +2,12 @@
 Component functionality tests - implementation agnostic
 """
 
+import sys
+from upytest import skip
+
+# Check if running in MicroPython
+is_micropython = "micropython" in sys.version.lower()
+
 def test_simple_component():
     """Test basic component functionality with actual rendering"""
     from crank import h, component
@@ -109,6 +115,7 @@ def test_generator_component():
     assert rendered_div is not None
     assert rendered_div.textContent == "Count: 5"
 
+@skip("async def + yield not supported in MicroPython", skip_when=is_micropython)
 def test_async_generator_component():
     """Test async generator component creation (Pyodide only)"""
     from crank import h, component
@@ -197,7 +204,7 @@ def test_component_conditional_rendering():
     
     @component
     def ConditionalComponent(ctx, props):
-        for props in ctx:  # Receive updated props properly
+        for props in ctx:  # Re-enable context iteration with our fix
             show = props.get("show", True)
             if show:
                 yield h.div["Visible"]
@@ -211,7 +218,7 @@ def test_component_conditional_rendering():
     assert visible_div is not None
     assert visible_div.textContent == "Visible"
     
-    # Test hidden condition
+    # Test hidden condition  
     document.body.innerHTML = ""
     renderer.render(h(ConditionalComponent, show=False), document.body)
     hidden_div = document.querySelector("div")
