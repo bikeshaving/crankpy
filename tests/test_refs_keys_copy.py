@@ -114,11 +114,8 @@ def test_simple_dom_identity():
     assert second_span is not None
     assert second_span.textContent == "Hello"
     
-    # Check if the DOM node is the same object using js_id
-    is_same_node = first_span.js_id == second_span.js_id
-    
     # If this fails, DOM reconciliation isn't working at all
-    assert is_same_node, "Single element should preserve DOM node identity on re-render"
+    assert first_span.isSameNode(second_span), "Single element should preserve DOM node identity on re-render"
 
 def test_key_reordering():
     """Test that keyed elements maintain DOM node identity during reordering"""
@@ -164,9 +161,9 @@ def test_key_reordering():
     
     # CRITICAL: Verify DOM node identity is preserved during reordering
     # The same DOM nodes should exist in new positions (if keys work correctly)
-    assert reordered_spans[1].js_id == item1_node.js_id, "Item 1 DOM node should maintain identity"
-    assert reordered_spans[2].js_id == item2_node.js_id, "Item 2 DOM node should maintain identity"
-    assert reordered_spans[0].js_id == item3_node.js_id, "Item 3 DOM node should maintain identity"
+    assert reordered_spans[1].isSameNode(item1_node), "Item 1 DOM node should maintain identity"
+    assert reordered_spans[2].isSameNode(item2_node), "Item 2 DOM node should maintain identity"
+    assert reordered_spans[0].isSameNode(item3_node), "Item 3 DOM node should maintain identity"
 
 def test_keyed_arrays():
     """Test keyed arrays and DOM node identity preservation"""
@@ -204,8 +201,8 @@ def test_keyed_arrays():
     assert modified_lis[1].textContent == "cherry"
     
     # CRITICAL: Verify DOM node identity is preserved for remaining items
-    assert modified_lis[0].js_id == apple_node.js_id, "Apple DOM node should maintain identity"
-    assert modified_lis[1].js_id == cherry_node.js_id, "Cherry DOM node should maintain identity"
+    assert modified_lis[0].isSameNode(apple_node), "Apple DOM node should maintain identity"
+    assert modified_lis[1].isSameNode(cherry_node), "Cherry DOM node should maintain identity"
 
 def test_mixed_keyed_unkeyed():
     """Test mix of keyed and unkeyed elements with real rendering"""

@@ -8,9 +8,10 @@ import glob
 from playwright.async_api import async_playwright
 
 async def run_test(test_file: str, runtime: str):
-    config = {}
+    config = {
+        "experimental_create_proxy": "auto"
+    }
     if runtime == "micropython":
-        config["experimental_create_proxy"] = "auto"
         script_type = "mpy"
     else:
         script_type = "py"
@@ -80,9 +81,7 @@ await main()
         await page.goto("http://localhost:3333")
         await page.set_content(html)
 
-        # Wait for results - increase timeout for both runtimes as they can be slow
-        # Pyodide especially needs more time for initial loading
-        await page.wait_for_function("() => window.TEST_RESULT !== undefined", timeout=10000)
+        await page.wait_for_function("() => window.TEST_RESULT !== undefined", timeout=5000)
         result = await page.evaluate("() => window.TEST_RESULT")
 
         await browser.close()
