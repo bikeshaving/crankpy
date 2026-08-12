@@ -25,16 +25,18 @@ _is_micropython = sys.implementation.name == "micropython"
 # (TYPE_CHECKING) is plain typing; the runtime view degrades gracefully.
 TYPE_CHECKING = False
 if TYPE_CHECKING:
-    from typing import Any, Callable, Dict, Generic, Iterable, TypeVar, Union
+    from collections.abc import Callable, Iterable
+    from typing import Any, Dict, Generic, TypeVar, Union
 
-    T = TypeVar("T", bound=Dict[str, Any])
+    T = TypeVar("T", bound=dict[str, Any])
     TResult = TypeVar("TResult")
-    Props = Dict[str, Any]
+    Props = dict[str, Any]
     Children = Union[str, "El", bool, None, Iterable["Children"]]
     _ContextBase = Generic[T, TResult]
 else:
     try:
-        from typing import Any, Callable, Dict, Generic, Iterable, TypeVar, Union
+        from collections.abc import Callable, Iterable
+        from typing import Any, Dict, Generic, TypeVar, Union
     except ImportError:
         if not _is_micropython:
             raise

@@ -30,7 +30,7 @@ classifiers = [
     "Framework :: AsyncIO",
     "Operating System :: OS Independent",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dependencies = [
     "pyscript>=0.2.5",
 ]
@@ -66,7 +66,7 @@ test = [
 
 [tool.ruff]
 line-length = 88
-target-version = "py38"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = [
@@ -89,7 +89,7 @@ ignore = [
 "examples/*.py" = ["E402", "B023"]  # Allow imports after setup and loop var binding issues
 
 [tool.pyright]
-pythonVersion = "3.8"
+pythonVersion = "3.14"
 typeCheckingMode = "basic"  # Start with basic, not strict
 reportUnknownMemberType = false  # For JS interop
 reportUnknownVariableType = false  # For PyScript/Pyodide  
