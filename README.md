@@ -80,6 +80,33 @@ def Counter(ctx):
         ]
 ```
 
+### JSX Template Tag (t-strings)
+
+On Python 3.14+ (and MicroPython v1.28.0+), the `jsx` tag builds elements
+from PEP 750 template strings. The grammar matches the Crank.js `jsx`
+template tag.
+
+```python
+from crank import component
+from crank.dom import renderer
+from crank.jsx import jsx
+from js import document
+
+@component
+def Greeting(ctx, props):
+    name = props.get("name", "World")
+    for _ in ctx:
+        yield jsx(t'<div class="greeting">Hello, {name}!</div>')
+
+renderer.render(jsx(t'<{Greeting} name="Crank" />'), document.body)
+```
+
+The tag supports props (`id="a"`, `checked`, `onclick={handler}`), spread
+props (`...{props}`), fragments (bare children), component tags
+(`<{Component}>`), the generic closing tag (`<//>`), and comments
+(`<!-- -->`). Parse results are cached per template, so components can
+call `jsx` on every render.
+
 ### Props Reassignment
 
 ```python
