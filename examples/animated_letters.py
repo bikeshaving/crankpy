@@ -29,8 +29,10 @@ def get_random_letters():
 
 def defer_transition_styles(callback):
     """Defer style changes to next animation frame."""
+
     def inner():
         requestAnimationFrame(callback)
+
     requestAnimationFrame(inner)
 
 
@@ -52,10 +54,12 @@ def Letter(ctx, props):
     def after_mount(node):
         node.style.transform = f"translate({index * 1.1}em, -20px)"
         node.style.opacity = "0"
-        defer_transition_styles(lambda: (
-            setattr(node.style, "transform", f"translate({index * 1.1}em, 0)"),
-            setattr(node.style, "opacity", "1")
-        ))
+        defer_transition_styles(
+            lambda: (
+                setattr(node.style, "transform", f"translate({index * 1.1}em, 0)"),
+                setattr(node.style, "opacity", "1"),
+            )
+        )
 
     # Cleanup hook for exit animation
     @ctx.cleanup
@@ -70,10 +74,12 @@ def Letter(ctx, props):
         return Promise.new(lambda resolve, reject: setTimeout(resolve, 750))
 
     # Initial render with green color
-    yield h.span(style={
-        **base_style,
-        "color": "green",
-    })[letter]
+    yield h.span(
+        style={
+            **base_style,
+            "color": "green",
+        }
+    )[letter]
 
     # Subsequent renders with black color and position updates
     for props in ctx:
@@ -82,7 +88,11 @@ def Letter(ctx, props):
 
         @ctx.after
         def update_position(node):
-            defer_transition_styles(lambda: setattr(node.style, "transform", f"translate({index * 1.1}em, 0)"))
+            defer_transition_styles(
+                lambda: setattr(
+                    node.style, "transform", f"translate({index * 1.1}em, 0)"
+                )
+            )
 
         yield h.span(style={**base_style, "color": "black"})[letter]
 
@@ -103,11 +113,15 @@ def Letters(ctx):
         letters = get_random_letters()
 
         yield h.div(style={"height": "40px"})[
-            [h(Letter,
-                letter=letter,
-                index=i,
-                key=letter  # Use letter as key for proper animations
-            ) for i, letter in enumerate(letters)]
+            [
+                h(
+                    Letter,
+                    letter=letter,
+                    index=i,
+                    key=letter,  # Use letter as key for proper animations
+                )
+                for i, letter in enumerate(letters)
+            ]
         ]
 
 

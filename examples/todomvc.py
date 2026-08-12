@@ -73,10 +73,10 @@ def TodoItem(ctx, props):
                     className="toggle",
                     type="checkbox",
                     checked=todo["completed"],
-                    onchange=toggle_todo
+                    onchange=toggle_todo,
                 ),
                 h.label(ondblclick=start_editing)[todo["title"]],
-                h.button(className="destroy", onclick=delete_todo)
+                h.button(className="destroy", onclick=delete_todo),
             ],
             h.input(
                 className="edit",
@@ -84,9 +84,12 @@ def TodoItem(ctx, props):
                 value=edit_title,
                 oninput=handle_input,
                 onkeydown=handle_keydown,
-                onblur=save_edit
-            ) if editing else None
+                onblur=save_edit,
+            )
+            if editing
+            else None,
         ]
+
 
 @component
 def TodoApp(ctx):
@@ -97,11 +100,7 @@ def TodoApp(ctx):
     @ctx.refresh
     def add_todo(title):
         nonlocal todos, next_id
-        todos.append({
-            "id": next_id,
-            "title": title,
-            "completed": False
-        })
+        todos.append({"id": next_id, "title": title, "completed": False})
         next_id += 1
 
     @ctx.refresh
@@ -142,6 +141,7 @@ def TodoApp(ctx):
         def handler(ev):
             nonlocal filter_type
             filter_type = new_filter
+
         return handler
 
     @ctx.refresh
@@ -171,63 +171,74 @@ def TodoApp(ctx):
                     className="new-todo",
                     placeholder="What needs to be done?",
                     onkeydown=handle_new_todo,
-                    autofocus=True
-                )
+                    autofocus=True,
+                ),
             ],
-            h.section(className="main", style={"display": "block" if todos else "none"})[
+            h.section(
+                className="main", style={"display": "block" if todos else "none"}
+            )[
                 h.input(
                     id="toggle-all",
                     className="toggle-all",
                     type="checkbox",
                     checked=len(todos) > 0 and all(t["completed"] for t in todos),
-                    onchange=toggle_all
+                    onchange=toggle_all,
                 ),
                 h.label(htmlfor="toggle-all")["Mark all as complete"],
                 h.ul(className="todo-list")[
-                    [h(TodoItem,
-                       todo=todo,
-                       key=todo["id"],
-                       ontoggle=toggle_todo,
-                       onedit=edit_todo,
-                       ondelete=delete_todo
-                     ) for todo in filtered_todos]
-                ]
+                    [
+                        h(
+                            TodoItem,
+                            todo=todo,
+                            key=todo["id"],
+                            ontoggle=toggle_todo,
+                            onedit=edit_todo,
+                            ondelete=delete_todo,
+                        )
+                        for todo in filtered_todos
+                    ]
+                ],
             ],
-            h.footer(className="footer", style={"display": "block" if todos else "none"})[
+            h.footer(
+                className="footer", style={"display": "block" if todos else "none"}
+            )[
                 h.span(className="todo-count")[
                     h.strong[str(active_count)],
-                    f" item{'s' if active_count != 1 else ''} left"
+                    f" item{'s' if active_count != 1 else ''} left",
                 ],
                 h.ul(className="filters")[
                     h.li[
                         h.a(
                             href="#/",
                             onclick=set_filter("all"),
-                            className="selected" if filter_type == "all" else None
+                            className="selected" if filter_type == "all" else None,
                         )["All"]
                     ],
                     h.li[
                         h.a(
                             href="#/active",
                             onclick=set_filter("active"),
-                            className="selected" if filter_type == "active" else None
+                            className="selected" if filter_type == "active" else None,
                         )["Active"]
                     ],
                     h.li[
                         h.a(
                             href="#/completed",
                             onclick=set_filter("completed"),
-                            className="selected" if filter_type == "completed" else None
+                            className="selected"
+                            if filter_type == "completed"
+                            else None,
                         )["Completed"]
-                    ]
+                    ],
                 ],
                 h.button(
                     className="clear-completed",
                     onclick=clear_completed,
-                    style={"display": "block" if completed_count > 0 else "none"}
-                )["Clear completed"]
-            ]
+                    style={"display": "block" if completed_count > 0 else "none"},
+                )["Clear completed"],
+            ],
         ]
+
 
 # Render the app
 renderer.render(h(TodoApp), document.body)

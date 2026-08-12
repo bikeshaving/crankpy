@@ -42,5 +42,6 @@ def Counter(ctx):
             ],
         ]
 
+
 # Render the component
 renderer.render(h(Counter), document.body)

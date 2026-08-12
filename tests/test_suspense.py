@@ -2,13 +2,16 @@
 Enhanced Suspense tests - comprehensive async boundary testing beyond basic async.py
 """
 
+
 def test_suspense_with_loading_states():
     """Test Suspense component with various loading states"""
-    from crank import h, component
+    import asyncio
+
+    from js import document
+
+    from crank import component, h
     from crank.async_ import Suspense
     from crank.dom import renderer
-    from js import document
-    import asyncio
 
     @component
     async def SlowComponent(ctx, props):
@@ -17,9 +20,10 @@ def test_suspense_with_loading_states():
         return h.div[f"Slow content: {message}"]
 
     # Create suspense with fallback
-    suspense_element = h(Suspense,
+    suspense_element = h(
+        Suspense,
         fallback=h.div(className="loading")["Loading..."],
-        children=[h(SlowComponent, message="test")]
+        children=[h(SlowComponent, message="test")],
     )
 
     try:
@@ -37,13 +41,16 @@ def test_suspense_with_loading_states():
         # Suspense may not be fully implemented
         assert True
 
+
 def test_nested_suspense_boundaries():
     """Test nested Suspense components with different fallbacks"""
-    from crank import h, component
+    import asyncio
+
+    from js import document
+
+    from crank import component, h
     from crank.async_ import Suspense
     from crank.dom import renderer
-    from js import document
-    import asyncio
 
     @component
     async def OuterAsyncComponent(ctx, props):
@@ -56,15 +63,17 @@ def test_nested_suspense_boundaries():
         return h.div["Inner content"]
 
     # Nested suspense structure
-    nested_suspense = h(Suspense,
+    nested_suspense = h(
+        Suspense,
         fallback=h.div["Outer loading"],
         children=[
             h(OuterAsyncComponent),
-            h(Suspense,
+            h(
+                Suspense,
                 fallback=h.div["Inner loading"],
-                children=[h(InnerAsyncComponent)]
-            )
-        ]
+                children=[h(InnerAsyncComponent)],
+            ),
+        ],
     )
 
     try:
@@ -82,13 +91,16 @@ def test_nested_suspense_boundaries():
         # Nested suspense may not be fully implemented
         assert True
 
+
 def test_suspense_error_boundaries():
     """Test Suspense with error handling"""
-    from crank import h, component
+    import asyncio
+
+    from js import document
+
+    from crank import component, h
     from crank.async_ import Suspense
     from crank.dom import renderer
-    from js import document
-    import asyncio
 
     @component
     async def ErrorComponent(ctx, props):
@@ -105,9 +117,10 @@ def test_suspense_error_boundaries():
 
     # Test normal case
     try:
-        normal_suspense = h(Suspense,
+        normal_suspense = h(
+            Suspense,
             fallback=h.div["Loading normal"],
-            children=[h(ErrorComponent, errorType="none")]
+            children=[h(ErrorComponent, errorType="none")],
         )
 
         document.body.innerHTML = ""
@@ -121,9 +134,10 @@ def test_suspense_error_boundaries():
 
     # Test error cases
     try:
-        error_suspense = h(Suspense,
+        error_suspense = h(
+            Suspense,
             fallback=h.div["Loading error"],
-            children=[h(ErrorComponent, errorType="async_error")]
+            children=[h(ErrorComponent, errorType="async_error")],
         )
 
         document.body.innerHTML = ""
@@ -136,13 +150,16 @@ def test_suspense_error_boundaries():
         # Error handling in suspense may not be fully implemented
         assert True
 
+
 def test_suspense_list_ordering():
     """Test SuspenseList with reveal ordering"""
-    from crank import h, component
+    import asyncio
+
+    from js import document
+
+    from crank import component, h
     from crank.async_ import Suspense, SuspenseList
     from crank.dom import renderer
-    from js import document
-    import asyncio
 
     @component
     async def TimedComponent(ctx, props):
@@ -152,22 +169,26 @@ def test_suspense_list_ordering():
         return h.div[content]
 
     # Create SuspenseList with different reveal orders
-    suspense_list = h(SuspenseList,
+    suspense_list = h(
+        SuspenseList,
         revealOrder="forwards",
         children=[
-            h(Suspense,
+            h(
+                Suspense,
                 fallback=h.div["Loading 1"],
-                children=[h(TimedComponent, delay=0.02, content="Item 1")]
+                children=[h(TimedComponent, delay=0.02, content="Item 1")],
             ),
-            h(Suspense,
+            h(
+                Suspense,
                 fallback=h.div["Loading 2"],
-                children=[h(TimedComponent, delay=0.01, content="Item 2")]
+                children=[h(TimedComponent, delay=0.01, content="Item 2")],
             ),
-            h(Suspense,
+            h(
+                Suspense,
                 fallback=h.div["Loading 3"],
-                children=[h(TimedComponent, delay=0.015, content="Item 3")]
-            )
-        ]
+                children=[h(TimedComponent, delay=0.015, content="Item 3")],
+            ),
+        ],
     )
 
     try:
@@ -185,13 +206,16 @@ def test_suspense_list_ordering():
         # SuspenseList may not be fully implemented
         assert True
 
+
 def test_suspense_with_conditional_rendering():
     """Test Suspense with conditional async components"""
-    from crank import h, component
+    import asyncio
+
+    from js import document
+
+    from crank import component, h
     from crank.async_ import Suspense
     from crank.dom import renderer
-    from js import document
-    import asyncio
 
     @component
     async def ConditionalComponent(ctx, props):
@@ -205,9 +229,10 @@ def test_suspense_with_conditional_rendering():
 
     # Test with content shown
     try:
-        shown_suspense = h(Suspense,
+        shown_suspense = h(
+            Suspense,
             fallback=h.div["Loading conditional"],
-            children=[h(ConditionalComponent, show=True)]
+            children=[h(ConditionalComponent, show=True)],
         )
 
         document.body.innerHTML = ""
@@ -222,9 +247,10 @@ def test_suspense_with_conditional_rendering():
 
     # Test with content hidden
     try:
-        hidden_suspense = h(Suspense,
+        hidden_suspense = h(
+            Suspense,
             fallback=h.div["Loading hidden"],
-            children=[h(ConditionalComponent, show=False)]
+            children=[h(ConditionalComponent, show=False)],
         )
 
         document.body.innerHTML = ""
@@ -237,17 +263,24 @@ def test_suspense_with_conditional_rendering():
         # Conditional suspense may not be fully implemented
         assert True
 
+
 def test_suspense_with_data_fetching():
     """Test Suspense with simulated data fetching"""
-    from crank import h, component
+    import asyncio
+
+    from js import document
+
+    from crank import component, h
     from crank.async_ import Suspense
     from crank.dom import renderer
-    from js import document
-    import asyncio
 
     async def fetch_user_data(user_id):
         await asyncio.sleep(0.01)  # Simulate API call
-        return {"id": user_id, "name": f"User {user_id}", "email": f"user{user_id}@example.com"}
+        return {
+            "id": user_id,
+            "name": f"User {user_id}",
+            "email": f"user{user_id}@example.com",
+        }
 
     @component
     async def UserProfile(ctx, props):
@@ -258,15 +291,16 @@ def test_suspense_with_data_fetching():
             return h.div(className="user-profile")[
                 h.h2[user_data["name"]],
                 h.p[f"ID: {user_data['id']}"],
-                h.p[f"Email: {user_data['email']}"]
+                h.p[f"Email: {user_data['email']}"],
             ]
         except Exception:
             return h.div["Failed to load user"]
 
     # Test data fetching with suspense
-    user_suspense = h(Suspense,
+    user_suspense = h(
+        Suspense,
         fallback=h.div(className="loading-user")["Loading user..."],
-        children=[h(UserProfile, userId=123)]
+        children=[h(UserProfile, userId=123)],
     )
 
     try:
@@ -287,13 +321,16 @@ def test_suspense_with_data_fetching():
         # Data fetching with suspense may not be fully implemented
         assert True
 
+
 def test_suspense_with_racing_components():
     """Test Suspense with multiple async components racing"""
-    from crank import h, component
+    import asyncio
+
+    from js import document
+
+    from crank import component, h
     from crank.async_ import Suspense
     from crank.dom import renderer
-    from js import document
-    import asyncio
 
     @component
     async def FastComponent(ctx, props):
@@ -306,12 +343,10 @@ def test_suspense_with_racing_components():
         return h.div["Slow component loaded"]
 
     # Components racing within suspense
-    racing_suspense = h(Suspense,
+    racing_suspense = h(
+        Suspense,
         fallback=h.div["Loading racing components"],
-        children=[
-            h(FastComponent),
-            h(SlowComponent)
-        ]
+        children=[h(FastComponent), h(SlowComponent)],
     )
 
     try:
@@ -329,13 +364,16 @@ def test_suspense_with_racing_components():
         # Racing components in suspense may not be fully implemented
         assert True
 
+
 def test_suspense_update_patterns():
     """Test Suspense component update and re-rendering patterns"""
-    from crank import h, component
+    import asyncio
+
+    from js import document
+
+    from crank import component, h
     from crank.async_ import Suspense
     from crank.dom import renderer
-    from js import document
-    import asyncio
 
     @component
     async def UpdatingComponent(ctx, props):
@@ -345,9 +383,10 @@ def test_suspense_update_patterns():
 
     try:
         # Initial render
-        suspense_v1 = h(Suspense,
+        suspense_v1 = h(
+            Suspense,
             fallback=h.div["Loading v1"],
-            children=[h(UpdatingComponent, version=1)]
+            children=[h(UpdatingComponent, version=1)],
         )
 
         document.body.innerHTML = ""
@@ -357,9 +396,10 @@ def test_suspense_update_patterns():
         assert initial_content is not None
 
         # Update render
-        suspense_v2 = h(Suspense,
+        suspense_v2 = h(
+            Suspense,
             fallback=h.div["Loading v2"],
-            children=[h(UpdatingComponent, version=2)]
+            children=[h(UpdatingComponent, version=2)],
         )
 
         renderer.render(suspense_v2, document.body)
@@ -371,13 +411,16 @@ def test_suspense_update_patterns():
         # Suspense updates may not be fully implemented
         assert True
 
+
 def test_suspense_with_fragments():
     """Test Suspense containing fragment components"""
-    from crank import h, component, Fragment
+    import asyncio
+
+    from js import document
+
+    from crank import Fragment, component, h
     from crank.async_ import Suspense
     from crank.dom import renderer
-    from js import document
-    import asyncio
 
     @component
     async def FragmentComponent(ctx, props):
@@ -388,15 +431,13 @@ def test_suspense_with_fragments():
         for i in range(count):
             items.append(h.li[f"Async item {i + 1}"])
 
-        return h(Fragment)[
-            h.h3["Async fragment loaded"],
-            h.ul[items]
-        ]
+        return h(Fragment)[h.h3["Async fragment loaded"], h.ul[items]]
 
     # Suspense with fragment
-    fragment_suspense = h(Suspense,
+    fragment_suspense = h(
+        Suspense,
         fallback=h.div["Loading fragment"],
-        children=[h(FragmentComponent, count=3)]
+        children=[h(FragmentComponent, count=3)],
     )
 
     try:
@@ -415,13 +456,16 @@ def test_suspense_with_fragments():
         # Suspense with fragments may not be fully implemented
         assert True
 
+
 def test_suspense_timeout_handling():
     """Test Suspense with timeout scenarios"""
-    from crank import h, component
+    import asyncio
+
+    from js import document
+
+    from crank import component, h
     from crank.async_ import Suspense
     from crank.dom import renderer
-    from js import document
-    import asyncio
 
     @component
     async def TimeoutComponent(ctx, props):
@@ -430,9 +474,10 @@ def test_suspense_timeout_handling():
         return h.div["Finally loaded after timeout"]
 
     # Test with potential timeout
-    timeout_suspense = h(Suspense,
+    timeout_suspense = h(
+        Suspense,
         fallback=h.div["Loading with potential timeout"],
-        children=[h(TimeoutComponent, timeout=0.005)]  # Short timeout
+        children=[h(TimeoutComponent, timeout=0.005)],  # Short timeout
     )
 
     try:

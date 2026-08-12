@@ -12,5 +12,6 @@ from crank.dom import renderer
 def Greeting():
     return h.div["Hello, Crank.py!"]
 
+
 # Render the component
 renderer.render(h(Greeting), document.body)

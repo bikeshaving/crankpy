@@ -8,8 +8,7 @@ help:  ## Show this help message
 test:  ## Run automated upytest with pass/fail results
 	@echo "🧪 Running automated upytest in both Pyodide and MicroPython"
 	@if ! curl -s http://localhost:3333/ > /dev/null 2>&1; then \
-		echo "❌ Server not running. Starting server..."; \
-		echo "Please run 'make serve' in another terminal, then run 'make test' again."; \
+		echo "❌ Server not running. Run 'make serve' in another terminal first."; \
 		exit 1; \
 	fi
 	uv run --group test python tests
