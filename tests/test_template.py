@@ -205,6 +205,35 @@ def test_namespaced_props_render():
     assert div.querySelector("b").textContent == "bold"
 
 
+def test_deep_template():
+    """A 60-level template parses, builds, and renders without recursion"""
+    from js import document
+
+    from crank.dom import renderer
+    from crank.template import jsx
+
+    class FakeTemplate:
+        """Duck-typed Template: jsx() only reads strings and interpolations.
+
+        A t-string literal is static, so this test builds the deep
+        markup at run time instead.
+        """
+
+        def __init__(self, strings, interpolations=()):
+            self.strings = strings
+            self.interpolations = interpolations
+
+    deep = "<div>" * 60 + "core" + "</div>" * 60
+    el = jsx(FakeTemplate((deep,)))
+
+    root = document.createElement("div")
+    document.body.appendChild(root)
+    renderer.render(el, root)
+    count = len(list(root.querySelectorAll("div")))
+    assert count == 60, count
+    assert root.textContent == "core"
+
+
 def test_html_alias():
     from crank.template import html, jsx
 
