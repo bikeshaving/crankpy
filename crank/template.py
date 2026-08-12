@@ -560,7 +560,8 @@ def _unescape(text):
     return "".join(out)
 
 
-def _build(parsed, spans):
+def _finalize_parsed(parsed, children, spans):
+    """Validate the close tag and make the El for one parsed element."""
     close = parsed["close"]
     open_tag = parsed["open"]
     if close is not None and close["slash"] != "//":
@@ -583,13 +584,6 @@ def _build(parsed, spans):
                     )
                 )
             raise SyntaxError(message)
-
-    children = []
-    for child in parsed["children"]:
-        if child["type"] == "element":
-            children.append(_build(child, spans))
-        else:
-            children.append(child["value"])
 
     props = {}
     for prop in parsed["props"]:
@@ -622,6 +616,34 @@ def _build(parsed, spans):
     if isinstance(tag, str) and tag == "":
         tag = Fragment
     return El(tag, props or None, children)
+
+
+def _build(parsed, spans):
+    """Build the El tree from a parsed template.
+
+    The traversal uses an explicit stack. MicroPython allows only a small
+    number of Python frames, and recursion would limit the template depth.
+    """
+    # Each frame: [node, next_index, results]
+    frames = [[parsed, 0, []]]
+    while True:
+        frame = frames[-1]
+        node, i, results = frame
+        node_children = node["children"]
+        if i < len(node_children):
+            frame[1] = i + 1
+            child = node_children[i]
+            if child["type"] == "element":
+                frames.append([child, 0, []])
+            else:
+                results.append(child["value"])
+            continue
+
+        frames.pop()
+        value = _finalize_parsed(node, results, spans)
+        if not frames:
+            return value
+        frames[-1][2].append(value)
 
 
 _cache = {}
