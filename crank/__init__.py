@@ -132,10 +132,27 @@ class El:
         return f"El({tag!r}, props={self.props!r}, children={len(self.children)})"
 
 
+def _convert_prop_name(key):
+    """Convert one prop name for an HTML tag.
+
+    - A name with a colon passes through verbatim. This keeps the Crank
+      prop:name and attr:name escape hatches exact: **{"prop:innerHTML": x}.
+    - A double underscore becomes a colon, because keyword arguments
+      cannot contain colons: prop__innerHTML, attr__data_id.
+    - Other underscores become hyphens: data_test_id -> data-test-id.
+    """
+    if ":" in key:
+        return key
+    if "__" in key:
+        head, tail = key.split("__", 1)
+        return head + ":" + tail.replace("_", "-")
+    return key.replace("_", "-")
+
+
 def _convert_props(tag, props):
     """Convert prop names for a tag. HTML attributes get kebab-case names."""
     if isinstance(tag, str):
-        return {key.replace("_", "-"): value for key, value in props.items()}
+        return {_convert_prop_name(key): value for key, value in props.items()}
     return dict(props)
 
 
@@ -319,7 +336,7 @@ def _prop_value_to_js(value):
         for item in value:
             array.push(_prop_value_to_js(item))
         return array
-    return _proxy_if_callable(value)
+    return _proxy_if_callable(_scalar_to_js(value))
 
 
 def _dict_to_js_object(props):
@@ -330,15 +347,33 @@ def _dict_to_js_object(props):
     return obj
 
 
-def _child_to_js(child):
-    if isinstance(child, (El, ElementBuilder)):
-        return to_element(child)
-    if isinstance(child, (list, tuple)):
-        array = Array.new()
-        for item in child:
-            array.push(_child_to_js(item))
-        return array
-    return child
+# The MicroPython FFI truncates integers to 32 bits. Larger values cross
+# the boundary as floats, which JavaScript stores exactly up to 2**53.
+_INT32_MIN = -2147483648
+_INT32_MAX = 2147483647
+
+
+def _scalar_to_js(value):
+    if (
+        _is_micropython
+        and isinstance(value, int)
+        and not (_INT32_MIN <= value <= _INT32_MAX)
+    ):
+        return float(value)
+    return value
+
+
+def _finalize_el(node, results):
+    """Make the Crank element for one El whose children are transformed."""
+    js_props = _dict_to_js_object(node.props) if node.props else None
+    if isinstance(node.tag, JsComponent):
+        children = Array.new()
+        for result in results:
+            children.push(result)
+        return _js_create_with_tag(
+            createElement, _js_tags, node.tag.key, js_props, children
+        )
+    return createElement(node.tag, js_props, *results)
 
 
 def to_element(node):
@@ -346,24 +381,53 @@ def to_element(node):
 
     Strings, numbers, None, and JavaScript elements pass through unchanged.
     A bare list or tuple becomes a Fragment.
+
+    The traversal uses an explicit stack. MicroPython allows only a small
+    number of Python frames, and recursion would limit the tree depth.
     """
     if isinstance(node, ElementBuilder):
         node = El(node.tag, node.props, [])
+    if not isinstance(node, (El, list, tuple)):
+        return _scalar_to_js(node)
+
+    # Each frame: [container, children, next_index, results]
     if isinstance(node, El):
-        js_props = _dict_to_js_object(node.props) if node.props else None
-        if isinstance(node.tag, JsComponent):
-            children = Array.new()
-            for child in node.children:
-                children.push(_child_to_js(child))
-            return _js_create_with_tag(
-                createElement, _js_tags, node.tag.key, js_props, children
-            )
-        return createElement(
-            node.tag, js_props, *[_child_to_js(c) for c in node.children]
-        )
-    if isinstance(node, (list, tuple)):
-        return createElement(Fragment, None, *[_child_to_js(c) for c in node])
-    return node
+        frames = [[node, node.children, 0, []]]
+    else:
+        frames = [[node, node, 0, []]]
+
+    while True:
+        frame = frames[-1]
+        container, children, i, results = frame
+        if i < len(children):
+            frame[2] = i + 1
+            child = children[i]
+            if isinstance(child, ElementBuilder):
+                child = El(child.tag, child.props, [])
+            if isinstance(child, El):
+                frames.append([child, child.children, 0, []])
+            elif isinstance(child, (list, tuple)):
+                frames.append([child, child, 0, []])
+            else:
+                results.append(_scalar_to_js(child))
+            continue
+
+        # The frame is complete. Build its value.
+        frames.pop()
+        if isinstance(container, El):
+            value = _finalize_el(container, results)
+        elif frames:
+            # A nested list becomes a JavaScript array child
+            value = Array.new()
+            for result in results:
+                value.push(result)
+        else:
+            # A root list becomes a Fragment
+            value = createElement(Fragment, None, *results)
+
+        if not frames:
+            return value
+        frames[-1][3].append(value)
 
 
 class Renderer:
@@ -384,6 +448,28 @@ class Renderer:
 # --- Context ----------------------------------------------------------------
 
 
+def _adapt_arity(func):
+    """Return call(args) that adapts a 0-or-1 parameter function to any args."""
+    try:
+        param_count = len(inspect.signature(func).parameters)
+    except (AttributeError, ValueError):
+        # MicroPython has no inspect.signature
+        param_count = None
+
+    def call(args):
+        if param_count == 0 or not args:
+            return func()
+        if param_count is not None:
+            return func(args[0])
+        # MicroPython: arity is unknown, so probe
+        try:
+            return func(args[0])
+        except TypeError:
+            return func()
+
+    return call
+
+
 class Context(_ContextBase):
     """Wrapper for the Crank Context with Python conveniences."""
 
@@ -401,30 +487,32 @@ class Context(_ContextBase):
         return method
 
     def refresh(self, func=None):
-        """Use as a method call, ctx.refresh(), or as a decorator, @ctx.refresh."""
+        """Use as a method call, ctx.refresh(), or as a decorator, @ctx.refresh.
+
+        The decorator returns a wrapper. When the wrapper runs (for
+        example as an event handler), it calls the function and then
+        refreshes the component through Crank's refresh(callback).
+        """
         if func is None:
             return self._js_method("refresh")()
-        return self._register_callback(func, self._js_method("refresh"))
+
+        js_refresh = self._js_method("refresh")
+        adapted = _adapt_arity(func)
+
+        def refresher(*args):
+            if js_refresh is None:
+                return adapted(args)
+            return js_refresh(_create_proxy(lambda: adapted(args)))
+
+        return refresher
 
     def _register_callback(self, func, callback_method):
         """Register a callback with a wrapper that adapts to its arity."""
         if callback_method and callable(func):
-            try:
-                param_count = len(inspect.signature(func).parameters)
-            except (AttributeError, ValueError):
-                # MicroPython has no inspect.signature
-                param_count = None
+            adapted = _adapt_arity(func)
 
             def variadic_wrapper(*args):
-                if param_count == 0 or not args:
-                    return func()
-                if param_count is not None:
-                    return func(args[0])
-                # MicroPython: arity is unknown, so probe
-                try:
-                    return func(args[0])
-                except TypeError:
-                    return func()
+                return adapted(args)
 
             callback_method(_create_proxy(variadic_wrapper))
         return func

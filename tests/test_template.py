@@ -179,6 +179,32 @@ def test_render_component_with_state():
     assert document.querySelector("p").textContent == "Count: 42"
 
 
+def test_namespaced_props():
+    from crank.template import jsx
+
+    markup = "<b>bold</b>"
+    el = jsx(t'<div prop:innerHTML={markup} attr:class="c" attr:data-x="1" />')
+    assert el.props["prop:innerHTML"] == markup
+    assert el.props["attr:class"] == "c"
+    assert el.props["attr:data-x"] == "1"
+
+
+def test_namespaced_props_render():
+    from js import document
+
+    from crank.dom import renderer
+    from crank.template import jsx
+
+    markup = "<b>bold</b>"
+    document.body.innerHTML = ""
+    renderer.render(
+        jsx(t'<div prop:innerHTML={markup} attr:class="wrapper" />'), document.body
+    )
+    div = document.querySelector("div")
+    assert div.getAttribute("class") == "wrapper"
+    assert div.querySelector("b").textContent == "bold"
+
+
 def test_html_alias():
     from crank.template import html, jsx
 

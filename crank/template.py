@@ -42,6 +42,12 @@ def _is_word_char(c):
     return c.isalpha() or c.isdigit() or c in _WORD_EXTRA
 
 
+def _is_prop_name_char(c):
+    # Prop names also allow colons for the Crank prop:name and attr:name
+    # escape hatches. The upstream jsx tag does not parse these yet.
+    return _is_word_char(c) or c == ":"
+
+
 def _skip_space(span, i):
     n = len(span)
     while i < n and span[i].isspace():
@@ -131,7 +137,7 @@ def _match_props(span, i):
             return {"start": search, "end": end, "kind": "spread"}
         elif _is_word_char(c):
             m = j
-            while m < n and _is_word_char(span[m]):
+            while m < n and _is_prop_name_char(span[m]):
                 m += 1
             name = span[j:m]
             k = _skip_space(span, m)
