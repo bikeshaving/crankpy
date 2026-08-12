@@ -1,11 +1,10 @@
-"""
-Crank.py DOM module - Direct import of Crank's DOM renderer
-"""
+"""Crank.py DOM module - the Crank DOM renderer with the Python tree transform."""
 
 from pyscript.js_modules import crank_dom
 
-# Export the correct names
-DOMRenderer = crank_dom.DOMRenderer
-renderer = crank_dom.renderer
+from . import Renderer
 
-__all__ = ['DOMRenderer', 'renderer']
+DOMRenderer = crank_dom.DOMRenderer
+renderer = Renderer(crank_dom.renderer)
+
+__all__ = ["DOMRenderer", "renderer"]

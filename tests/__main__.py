@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
-import asyncio
-import sys
 import argparse
-import os
+import asyncio
 import glob
+import os
+import sys
 
 from playwright.async_api import async_playwright
 
+
 async def run_test(test_file: str, runtime: str):
-    config = {
-        "experimental_create_proxy": "auto"
-    }
+    config = {"experimental_create_proxy": "auto"}
     if runtime == "micropython":
         script_type = "mpy"
     else:
@@ -23,18 +22,20 @@ async def run_test(test_file: str, runtime: str):
         "./crank/html.py": "crank/html.py",
         "./crank/typing_stub.py": "crank/typing_stub.py",
         "./crank/async_.py": "crank/async_.py",
-        f"./tests/{test_file}": test_file
+        "./crank/_asyncgen.py": "crank/_asyncgen.py",
+        f"./tests/{test_file}": test_file,
     }
 
     config["js_modules"] = {
         "main": {
             "/node_modules/@b9g/crank/crank.js": "crank_core",
             "/node_modules/@b9g/crank/dom.js": "crank_dom",
-            "/node_modules/@b9g/crank/async.js": "crank_async"
+            "/node_modules/@b9g/crank/async.js": "crank_async",
         }
     }
 
     import json
+
     config_html = f"<{script_type}-config>{json.dumps(config)}</{script_type}-config>"
 
     html = f"""<!DOCTYPE html><html>
@@ -81,7 +82,9 @@ await main()
         await page.goto("http://localhost:3333")
         await page.set_content(html)
 
-        await page.wait_for_function("() => window.TEST_RESULT !== undefined", timeout=5000)
+        await page.wait_for_function(
+            "() => window.TEST_RESULT !== undefined", timeout=5000
+        )
         result = await page.evaluate("() => window.TEST_RESULT")
 
         await browser.close()
@@ -95,12 +98,22 @@ await main()
 
 async def main():
     parser = argparse.ArgumentParser(description="Run Crank.py tests")
-    parser.add_argument("--runtime", choices=["pyodide", "micropython"],
-                       help="Run tests for specific runtime only")
-    parser.add_argument("tests", nargs="*",
-                       help="Test files or patterns to run (e.g., test_basic.py, basic, async)")
-    parser.add_argument("-k", "--keyword", dest="keyword",
-                       help="Run tests matching given substring expression")
+    parser.add_argument(
+        "--runtime",
+        choices=["pyodide", "micropython"],
+        help="Run tests for specific runtime only",
+    )
+    parser.add_argument(
+        "tests",
+        nargs="*",
+        help="Test files or patterns to run (e.g., test_basic.py, basic, async)",
+    )
+    parser.add_argument(
+        "-k",
+        "--keyword",
+        dest="keyword",
+        help="Run tests matching given substring expression",
+    )
     args = parser.parse_args()
 
     # Find all test files in the tests directory
@@ -122,7 +135,9 @@ async def main():
                 print(f"Warning: Unknown test '{test_pattern}'")
 
         if not test_files:
-            available = ', '.join([f.replace('test_', '').replace('.py', '') for f in all_test_files])
+            available = ", ".join(
+                [f.replace("test_", "").replace(".py", "") for f in all_test_files]
+            )
             print(f"No valid tests specified. Available: {available}")
             return 1
     elif args.keyword:
@@ -134,7 +149,9 @@ async def main():
                 test_files.append(test_file)
 
         if not test_files:
-            available = ', '.join([f.replace('test_', '').replace('.py', '') for f in all_test_files])
+            available = ", ".join(
+                [f.replace("test_", "").replace(".py", "") for f in all_test_files]
+            )
             print(f"No tests match keyword '{args.keyword}'. Available: {available}")
             return 1
     else:
@@ -153,18 +170,27 @@ async def main():
     for runtime in runtimes:
         print(f"\nRunning {len(test_files)} test files for {runtime}...")
 
-        runtime_fails = 0
+        passes = 0
+        fails = 0
+        skips = 0
+        errors = 0
 
         for test_file in test_files:
             print(f"\nRunning {test_file} on {runtime}...")
             try:
                 result = await run_test(test_file, runtime)
-                runtime_fails += result["fails"]
+                passes += result["passes"]
+                fails += result["fails"]
+                skips += result["skipped"]
             except Exception as e:
                 print(f"{test_file}: Error running test - {e}")
-                runtime_fails += 1
+                errors += 1
 
-        total_fails += runtime_fails
+        print(
+            f"\n{runtime} summary: {passes} passed, {fails} failed, "
+            f"{skips} skipped, {errors} file errors"
+        )
+        total_fails += fails + errors
 
     return 1 if total_fails > 0 else 0
 
