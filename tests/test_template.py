@@ -3,7 +3,7 @@
 
 def test_simple_element():
     from crank import El
-    from crank.jsx import jsx
+    from crank.template import jsx
 
     el = jsx(t"<div>Hello</div>")
     assert isinstance(el, El)
@@ -12,7 +12,7 @@ def test_simple_element():
 
 
 def test_element_with_string_props():
-    from crank.jsx import jsx
+    from crank.template import jsx
 
     el = jsx(t'<div id="app" class="container">Content</div>')
     assert el.props == {"id": "app", "class": "container"}
@@ -20,7 +20,7 @@ def test_element_with_string_props():
 
 
 def test_prop_expression():
-    from crank.jsx import jsx
+    from crank.template import jsx
 
     handler = lambda ev: None  # noqa: E731
     el = jsx(t"<button onclick={handler} disabled={True}>Go</button>")
@@ -29,7 +29,7 @@ def test_prop_expression():
 
 
 def test_boolean_prop():
-    from crank.jsx import jsx
+    from crank.template import jsx
 
     el = jsx(t"<input checked />")
     assert el.tag == "input"
@@ -37,7 +37,7 @@ def test_boolean_prop():
 
 
 def test_child_expression():
-    from crank.jsx import jsx
+    from crank.template import jsx
 
     name = "World"
     el = jsx(t"<div>Hello, {name}!</div>")
@@ -45,7 +45,7 @@ def test_child_expression():
 
 
 def test_child_conversion_and_format():
-    from crank.jsx import jsx
+    from crank.template import jsx
 
     count = 3.14159
     el = jsx(t"<span>{count:.2f}</span>")
@@ -53,7 +53,7 @@ def test_child_conversion_and_format():
 
 
 def test_interpolated_prop_string():
-    from crank.jsx import jsx
+    from crank.template import jsx
 
     theme = "dark"
     el = jsx(t'<div class="btn {theme}">x</div>')
@@ -61,7 +61,7 @@ def test_interpolated_prop_string():
 
 
 def test_nested_elements():
-    from crank.jsx import jsx
+    from crank.template import jsx
 
     el = jsx(t"<ul><li>One</li><li>Two</li></ul>")
     assert el.tag == "ul"
@@ -73,7 +73,7 @@ def test_nested_elements():
 
 def test_fragment():
     from crank import Fragment
-    from crank.jsx import jsx
+    from crank.template import jsx
 
     el = jsx(t"<div>a</div><div>b</div>")
     assert el.tag is Fragment or el.tag == Fragment
@@ -81,7 +81,7 @@ def test_fragment():
 
 
 def test_self_closing():
-    from crank.jsx import jsx
+    from crank.template import jsx
 
     el = jsx(t'<img src="x.png" />')
     assert el.tag == "img"
@@ -91,7 +91,7 @@ def test_self_closing():
 
 def test_component_tag():
     from crank import component, h
-    from crank.jsx import jsx
+    from crank.template import jsx
 
     @component
     def Greeting(ctx, props):
@@ -107,7 +107,7 @@ def test_component_tag():
 
 
 def test_spread_props():
-    from crank.jsx import jsx
+    from crank.template import jsx
 
     extra = {"id": "spread", "title": "hi"}
     el = jsx(t'<div class="base" ...{extra}>x</div>')
@@ -115,14 +115,14 @@ def test_spread_props():
 
 
 def test_comment():
-    from crank.jsx import jsx
+    from crank.template import jsx
 
     el = jsx(t"<div><!-- ignored -->text</div>")
     assert el.children == ["text"]
 
 
 def test_whitespace_handling():
-    from crank.jsx import jsx
+    from crank.template import jsx
 
     el = jsx(t"""
         <div>
@@ -135,7 +135,7 @@ def test_whitespace_handling():
 
 
 def test_unmatched_closing_tag_error():
-    from crank.jsx import jsx
+    from crank.template import jsx
 
     try:
         jsx(t"<div>text</span>")
@@ -149,7 +149,7 @@ def test_render_to_dom():
     from js import document
 
     from crank.dom import renderer
-    from crank.jsx import jsx
+    from crank.template import jsx
 
     name = "Crank"
     document.body.innerHTML = ""
@@ -166,7 +166,7 @@ def test_render_component_with_state():
 
     from crank import component
     from crank.dom import renderer
-    from crank.jsx import jsx
+    from crank.template import jsx
 
     @component
     def Counter(ctx):
@@ -179,8 +179,17 @@ def test_render_component_with_state():
     assert document.querySelector("p").textContent == "Count: 42"
 
 
+def test_html_alias():
+    from crank.template import html, jsx
+
+    assert html is jsx
+    el = html(t"<div>aliased</div>")
+    assert el.tag == "div"
+    assert el.children == ["aliased"]
+
+
 def test_parse_cache_reuse():
-    from crank.jsx import jsx
+    from crank.template import jsx
 
     def make(n):
         return jsx(t"<div>{n}</div>")

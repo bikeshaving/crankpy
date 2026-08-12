@@ -7,7 +7,7 @@ renderer transforms at the render boundary (see crank/__init__.py).
 
 Usage:
 
-    from crank.jsx import jsx
+    from crank.template import jsx, html
 
     element = jsx(t'<div class="greeting">Hello, {name}</div>')
 
@@ -676,4 +676,8 @@ def jsx(template):
     return _build(parse_result["element"], spans)
 
 
-__all__ = ["jsx"]
+# Alias for the jsx template tag, matching Crank.js and the common name
+# for t-string HTML tags in the Python ecosystem (PEP 750, tdom).
+html = jsx
+
+__all__ = ["html", "jsx"]

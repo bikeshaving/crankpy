@@ -80,16 +80,16 @@ def Counter(ctx):
         ]
 ```
 
-### JSX Template Tag (t-strings)
+### Template Tag (t-strings)
 
 On Python 3.14+ (and MicroPython v1.28.0+), the `jsx` tag builds elements
 from PEP 750 template strings. The grammar matches the Crank.js `jsx`
-template tag.
+template tag. The `html` name is an alias for the same tag.
 
 ```python
 from crank import component
 from crank.dom import renderer
-from crank.jsx import jsx
+from crank.template import jsx
 from js import document
 
 @component

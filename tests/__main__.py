@@ -23,7 +23,7 @@ async def run_test(test_file: str, runtime: str):
         "./crank/typing_stub.py": "crank/typing_stub.py",
         "./crank/async_.py": "crank/async_.py",
         "./crank/_asyncgen.py": "crank/_asyncgen.py",
-        "./crank/jsx.py": "crank/jsx.py",
+        "./crank/template.py": "crank/template.py",
         f"./tests/{test_file}": test_file,
     }
 
